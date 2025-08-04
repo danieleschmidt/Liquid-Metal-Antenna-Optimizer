@@ -557,7 +557,7 @@ for i, antenna in enumerate(novel_antennas):
 ```bibtex
 @article{liquid_metal_antenna2025,
   title={Differentiable Electromagnetic Simulation for Liquid-Metal Antenna Design},
-  author={Your Name et al.},
+  author={Daniel Schmidt},
   journal={IEEE Transactions on Antennas and Propagation},
   year={2025},
   doi={10.1109/TAP.2025.XXXXX}
@@ -565,7 +565,7 @@ for i, antenna in enumerate(novel_antennas):
 
 @inproceedings{neural_em_surrogate2024,
   title={Neural Operators for Fast Electromagnetic Simulation},
-  author={Your Team},
+  author={Daniel Schmidt},
   booktitle={NeurIPS},
   year={2024}
 }
