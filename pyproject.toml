@@ -1,0 +1,111 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "liquid-metal-antenna-opt"
+dynamic = ["version"]
+description = "Automated design and optimization of reconfigurable liquid-metal antennas using differentiable EM solvers and neural surrogate models"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    { name = "Daniel Schmidt", email = "daniel@terragonlabs.com" },
+]
+keywords = [
+    "antenna",
+    "electromagnetic",
+    "optimization",
+    "liquid-metal",
+    "neural-networks",
+    "fdtd",
+    "microfluidics",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.21.0",
+    "scipy>=1.7.0",
+    "matplotlib>=3.5.0",
+    "torch>=2.0.0",
+    "scikit-learn>=1.0.0",
+    "tqdm>=4.62.0",
+    "pydantic>=2.0.0",
+    "h5py>=3.7.0",
+    "joblib>=1.1.0",
+]
+
+[project.optional-dependencies]
+cuda = [
+    "cupy>=12.0.0",
+    "torch[cuda]",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=2.20.0",
+]
+cad = [
+    "pythreejs>=2.4.0",
+    "trimesh>=3.15.0",
+    "meshio>=5.3.0",
+]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=0.18.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/danieleschmidt/liquid-metal-antenna-optimizer"
+Documentation = "https://liquid-metal-antenna.readthedocs.io"
+Repository = "https://github.com/danieleschmidt/liquid-metal-antenna-optimizer.git"
+Issues = "https://github.com/danieleschmidt/liquid-metal-antenna-optimizer/issues"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "liquid_metal_antenna/_version.py"
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = [
+    "tests",
+]
+pythonpath = [
+    ".",
+]
