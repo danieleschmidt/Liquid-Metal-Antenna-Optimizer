@@ -5,13 +5,25 @@ Liquid Metal Antenna Optimizer - Main optimization engine.
 import time
 from typing import Dict, Any, Optional, Union, Callable, List, Tuple
 import numpy as np
-import torch
-import torch.optim as optim
 from dataclasses import dataclass
+
+# Optional torch import
+try:
+    import torch
+    import torch.optim as optim
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+    optim = None
 
 from .antenna_spec import AntennaSpec
 from ..solvers.base import BaseSolver, SolverResult
 from ..solvers.fdtd import DifferentiableFDTD
+
+# Fallback implementation
+if not TORCH_AVAILABLE:
+    from .optimizer_fallback import SimpleLMAOptimizer, SimpleOptimizationResult
 
 
 @dataclass
@@ -74,24 +86,25 @@ class OptimizationResult:
         print(f"CAD export to {filename} - Feature not implemented in Generation 1")
 
 
-class LMAOptimizer:
-    """
-    Liquid Metal Antenna Optimizer.
-    
-    Main optimization engine that combines electromagnetic solvers with
-    optimization algorithms to design reconfigurable liquid-metal antennas.
-    """
-    
-    def __init__(
-        self,
-        spec: Optional[AntennaSpec] = None,
-        solver: Union[str, BaseSolver] = 'differentiable_fdtd',
-        device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
-    ):
+if TORCH_AVAILABLE:
+    class LMAOptimizer:
         """
-        Initialize optimizer.
+        Liquid Metal Antenna Optimizer.
         
-        Args:
+        Main optimization engine that combines electromagnetic solvers with
+        optimization algorithms to design reconfigurable liquid-metal antennas.
+        """
+        
+        def __init__(
+            self,
+            spec: Optional[AntennaSpec] = None,
+            solver: Union[str, BaseSolver] = 'differentiable_fdtd',
+            device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
+        ):
+            """
+            Initialize optimizer.
+            
+            Args:
             spec: Antenna specification
             solver: Solver type or instance
             device: Computation device
@@ -121,7 +134,7 @@ class LMAOptimizer:
             'size': 1.0
         }
     
-    def create_initial_geometry(self, spec: AntennaSpec) -> torch.Tensor:
+    def create_initial_geometry(self, spec: AntennaSpec) -> Union['torch.Tensor', np.ndarray]:
         """Create initial antenna geometry."""
         # Grid dimensions based on antenna size
         nx = int(spec.size_constraint.length * 1e-3 / self.solver.resolution)
@@ -134,7 +147,10 @@ class LMAOptimizer:
         nz = max(nz, 8)
         
         # Create simple patch antenna starting geometry
-        geometry = torch.zeros((nx, ny, nz), dtype=torch.float32, device=self.device)
+        if TORCH_AVAILABLE:
+            geometry = torch.zeros((nx, ny, nz), dtype=torch.float32, device=self.device)
+        else:
+            geometry = np.zeros((nx, ny, nz), dtype=np.float32)
         
         # Add rectangular patch in center
         patch_x = nx // 4
@@ -161,10 +177,10 @@ class LMAOptimizer:
     
     def compute_objective(
         self,
-        geometry: torch.Tensor,
+        geometry: Union['torch.Tensor', np.ndarray],
         spec: AntennaSpec,
         objective: str = 'max_gain'
-    ) -> torch.Tensor:
+    ) -> Union['torch.Tensor', float]:
         """
         Compute optimization objective.
         
@@ -435,3 +451,26 @@ class LMAOptimizer:
     ) -> None:
         """Plot Pareto frontier (Generation 3 feature)."""
         print("Pareto frontier plotting not implemented in Generation 1")
+
+
+def create_optimizer(
+    spec: AntennaSpec,
+    solver: Union[str, BaseSolver] = 'differentiable_fdtd',
+    device: str = 'cpu'
+) -> Union['LMAOptimizer', 'SimpleLMAOptimizer']:
+    """
+    Factory function to create the appropriate optimizer.
+    
+    Returns the full LMAOptimizer if PyTorch is available,
+    otherwise returns the simplified fallback implementation.
+    """
+    if TORCH_AVAILABLE:
+        return LMAOptimizer(spec, solver, device)
+    else:
+        return SimpleLMAOptimizer(spec, solver, device)
+
+
+# The actual LMAOptimizer class will be defined below for torch-enabled systems
+if not TORCH_AVAILABLE:
+    # Use the simple optimizer as the default when torch is not available
+    LMAOptimizer = SimpleLMAOptimizer
