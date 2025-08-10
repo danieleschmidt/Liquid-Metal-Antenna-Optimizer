@@ -1,0 +1,182 @@
+version: '3.8'
+
+services:
+  # Main liquid-metal antenna optimizer service
+  lma-optimizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lma-optimizer
+    ports:
+      - "8000:8000"  # API port
+      - "8001:8001"  # Monitoring port
+    environment:
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://lma_user:lma_pass@postgres:5432/lma_db
+      - GPU_ENABLED=true
+      - MAX_WORKERS=4
+      - ANTENNA_SECURITY_KEY=${ANTENNA_SECURITY_KEY}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./cache:/app/cache
+    depends_on:
+      - redis
+      - postgres
+      - monitoring
+    networks:
+      - lma-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4'
+        reservations:
+          memory: 4G
+          cpus: '2'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Redis for caching and task queues
+  redis:
+    image: redis:7-alpine
+    container_name: lma-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - lma-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # PostgreSQL for persistent data storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: lma-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=lma_db
+      - POSTGRES_USER=lma_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - lma-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+
+  # Monitoring and metrics
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: lma-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - lma-network
+    restart: unless-stopped
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: lma-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - lma-network
+    restart: unless-stopped
+    depends_on:
+      - monitoring
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: lma-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/ssl/certs
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - lma-optimizer
+    networks:
+      - lma-network
+    restart: unless-stopped
+
+  # Worker nodes for distributed computing
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - ENV=production
+      - WORKER_TYPE=compute
+      - REDIS_URL=redis://redis:6379
+      - GPU_ENABLED=true
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    depends_on:
+      - redis
+      - lma-optimizer
+    networks:
+      - lma-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 6G
+          cpus: '3'
+
+networks:
+  lma-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
