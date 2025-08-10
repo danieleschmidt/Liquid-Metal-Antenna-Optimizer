@@ -1,0 +1,89 @@
+# Core dependencies
+numpy>=1.21.0
+scipy>=1.7.0
+matplotlib>=3.4.0
+pandas>=1.3.0
+
+# Machine Learning & AI
+scikit-learn>=1.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.20.0
+
+# Scientific Computing
+numba>=0.56.0
+sympy>=1.9.0
+
+# Optimization
+pygmo>=2.18.0
+optuna>=3.0.0
+
+# Visualization
+plotly>=5.0.0
+seaborn>=0.11.0
+
+# Web Framework & API
+fastapi>=0.95.0
+uvicorn>=0.20.0
+pydantic>=2.0.0
+starlette>=0.27.0
+
+# Database & Caching
+redis>=4.5.0
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+alembic>=1.10.0
+
+# Async & Concurrency
+asyncio-mqtt>=0.13.0
+aioredis>=2.0.0
+celery>=5.2.0
+
+# Monitoring & Logging
+prometheus-client>=0.16.0
+structlog>=23.0.0
+sentry-sdk>=1.20.0
+
+# Security
+cryptography>=40.0.0
+bcrypt>=4.0.0
+passlib>=1.7.4
+python-jose>=3.3.0
+
+# Configuration & Environment
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+
+# Development & Testing (optional)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Documentation
+mkdocs>=1.4.0
+mkdocs-material>=9.0.0
+
+# Deployment & DevOps
+gunicorn>=20.1.0
+docker>=6.0.0
+
+# Performance & Profiling
+psutil>=5.9.0
+memory-profiler>=0.61.0
+py-spy>=0.3.14
+
+# Utilities
+click>=8.1.0
+tqdm>=4.64.0
+tabulate>=0.9.0
+rich>=13.0.0
+
+# Optional GPU support
+# cupy-cuda11x>=11.0.0  # Uncomment if CUDA 11.x is available
+# pynvml>=11.0.0        # Uncomment for NVIDIA GPU monitoring
+
+# Optional MPI support for distributed computing
+# mpi4py>=3.1.0         # Uncomment if MPI is available

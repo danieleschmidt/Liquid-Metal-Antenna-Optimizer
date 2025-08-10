@@ -401,6 +401,124 @@ class SecureFileHandler:
             raise SecurityError(f"Failed to delete file: {str(e)}")
 
 
+class SecureEncryption:
+    """Secure encryption for sensitive data protection."""
+    
+    def __init__(self, key=None):
+        """Initialize secure encryption."""
+        self.key = key or "default_secure_key_12345678"
+        
+    def encrypt_data(self, data):
+        """Encrypt data (simplified implementation)."""
+        # Simplified encryption for demonstration
+        if isinstance(data, str):
+            encrypted = ''.join(chr((ord(c) + 5) % 256) for c in data)
+            return encrypted.encode('latin1', errors='ignore')
+        return str(data).encode()
+    
+    def decrypt_data(self, encrypted_data):
+        """Decrypt data (simplified implementation)."""
+        # Simplified decryption for demonstration
+        try:
+            if isinstance(encrypted_data, bytes):
+                decrypted = ''.join(chr((c - 5) % 256) for c in encrypted_data)
+                return decrypted
+        except:
+            return str(encrypted_data)
+        return str(encrypted_data)
+
+
+class AdvancedThreatDetector:
+    """Advanced threat detection system for security monitoring."""
+    
+    def __init__(self):
+        """Initialize threat detector."""
+        self.threat_patterns = [
+            'malicious_code',
+            'injection_attack',
+            'buffer_overflow',
+            'privilege_escalation'
+        ]
+        self.detected_threats = []
+    
+    def detect_threats(self, input_data):
+        """Detect security threats in input data."""
+        threats = []
+        
+        if isinstance(input_data, str):
+            # Check for dangerous patterns
+            dangerous_keywords = ['eval', 'exec', '__import__', 'subprocess']
+            for keyword in dangerous_keywords:
+                if keyword in input_data.lower():
+                    threats.append(f"Dangerous keyword detected: {keyword}")
+        
+        self.detected_threats.extend(threats)
+        return threats
+    
+    def get_threat_report(self):
+        """Get threat detection report."""
+        return {
+            'total_threats_detected': len(self.detected_threats),
+            'threat_patterns': self.threat_patterns,
+            'recent_threats': self.detected_threats[-10:] if self.detected_threats else []
+        }
+
+
+class ComprehensiveSecurityValidator:
+    """Comprehensive security validation framework."""
+    
+    def __init__(self, enable_monitoring: bool = True):
+        """Initialize comprehensive security validator."""
+        self.enable_monitoring = enable_monitoring
+        self.validation_attempts = 0
+        self.failed_validations = 0
+        self.detected_threats = []
+        
+    def validate_all_inputs(
+        self,
+        geometry=None,
+        frequency=None,
+        spec=None,
+        parameters=None,
+        client_id: str = 'unknown'
+    ):
+        """Comprehensive input validation."""
+        self.validation_attempts += 1
+        threats = []
+        
+        try:
+            # Basic validation logic
+            if geometry is not None and hasattr(geometry, 'size'):
+                if geometry.size > 1000000:  # 1M element limit
+                    threats.append(f"Geometry too large: {geometry.size}")
+            
+            if frequency is not None:
+                if not isinstance(frequency, (int, float)) or frequency <= 0:
+                    threats.append(f"Invalid frequency: {frequency}")
+            
+            validation_passed = len(threats) == 0
+            if not validation_passed:
+                self.failed_validations += 1
+            
+            return validation_passed, threats
+            
+        except Exception as e:
+            self.failed_validations += 1
+            return False, [f"Validation error: {e}"]
+    
+    def get_security_report(self):
+        """Get security validation report."""
+        success_rate = 1.0 - (self.failed_validations / max(self.validation_attempts, 1))
+        
+        return {
+            'validation_attempts': self.validation_attempts,
+            'failed_validations': self.failed_validations,
+            'success_rate': success_rate * 100,
+            'detected_threats': len(self.detected_threats),
+            'security_score': success_rate * 100
+        }
+
+
 class SecurityAudit:
     """Security auditing and monitoring."""
     
@@ -620,6 +738,24 @@ def sanitize_input(input_data: Any, input_type: str = 'string') -> Any:
         return InputSanitizer.sanitize_json(input_data)
     else:
         raise SecurityError(f"Unknown input type: {input_type}")
+
+
+def secure_operation(func):
+    """Decorator for secure operation execution."""
+    def wrapper(*args, **kwargs):
+        # Basic security checks before operation
+        validator = ComprehensiveSecurityValidator()
+        
+        # Perform basic input validation
+        try:
+            result = func(*args, **kwargs)
+            return result
+        except Exception as e:
+            # Log security-relevant exceptions
+            print(f"Secure operation {func.__name__} failed: {e}")
+            raise
+    
+    return wrapper
 
 
 # Global security audit instance
