@@ -27,14 +27,84 @@ from pathlib import Path
 from collections import defaultdict
 from abc import ABC, abstractmethod
 import logging
+import hashlib
+import platform
+import sys
+import psutil
 
 # Statistical analysis
-from scipy import stats
+import scipy.stats as stats
 from scipy.spatial.distance import euclidean
+from scipy.stats import kruskal, friedmanchisquare
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import KFold
+from sklearn.utils import resample
 
 from ..core.antenna_spec import AntennaSpec
 from ..optimization.neural_surrogate import NeuralSurrogate
 from ..utils.logging_config import get_logger
+
+
+@dataclass
+class MultiObjectiveMetrics:
+    """Multi-objective optimization metrics."""
+    
+    hypervolume: float = 0.0
+    igd_metric: float = float('inf')  # Inverted Generational Distance
+    gd_metric: float = float('inf')   # Generational Distance
+    spread_metric: float = 0.0
+    spacing_metric: float = 0.0
+    coverage_metric: float = 0.0
+    
+    # Pareto front quality
+    pareto_front_size: int = 0
+    convergence_metric: float = 0.0
+    diversity_metric: float = 0.0
+    
+    # Reference point metrics
+    r_metric: float = 0.0
+    epsilon_indicator: float = 0.0
+
+
+@dataclass
+class ConvergenceAnalysis:
+    """Detailed convergence analysis metrics."""
+    
+    convergence_rate: float = 0.0
+    convergence_stability: float = 0.0
+    plateau_detection: List[Tuple[int, int]] = field(default_factory=list)
+    improvement_phases: List[Tuple[int, int, float]] = field(default_factory=list)
+    stagnation_periods: List[Tuple[int, int]] = field(default_factory=list)
+    
+    # Statistical convergence properties
+    autocorrelation: List[float] = field(default_factory=list)
+    trend_analysis: Dict[str, float] = field(default_factory=dict)
+    volatility_measure: float = 0.0
+    
+    # Success metrics
+    target_reached: bool = False
+    target_reached_generation: Optional[int] = None
+    success_rate: float = 0.0
+
+
+@dataclass
+class RobustnessMetrics:
+    """Algorithm robustness and reliability metrics."""
+    
+    parameter_sensitivity: Dict[str, float] = field(default_factory=dict)
+    noise_robustness: float = 0.0
+    initialization_sensitivity: float = 0.0
+    
+    # Cross-validation metrics
+    cv_mean_performance: float = 0.0
+    cv_std_performance: float = 0.0
+    cv_reliability_score: float = 0.0
+    
+    # Bootstrap analysis
+    bootstrap_confidence_interval: Tuple[float, float] = (0.0, 0.0)
+    bootstrap_bias: float = 0.0
+    bootstrap_variance: float = 0.0
 
 
 @dataclass
@@ -52,7 +122,12 @@ class BenchmarkResult:
     function_evaluations: int
     computation_time: float
     
-    # Additional metrics
+    # Enhanced metrics
+    multiobjective_metrics: Optional[MultiObjectiveMetrics] = None
+    convergence_analysis: Optional[ConvergenceAnalysis] = None
+    robustness_metrics: Optional[RobustnessMetrics] = None
+    
+    # Legacy metrics (maintained for compatibility)
     hypervolume: Optional[float] = None
     igd_metric: Optional[float] = None
     spread_metric: Optional[float] = None
@@ -67,6 +142,11 @@ class BenchmarkResult:
     constraint_violations: int = 0
     feasibility_ratio: float = 1.0
     robustness_score: Optional[float] = None
+    
+    # Performance profiling
+    memory_peak_mb: float = 0.0
+    cpu_utilization: float = 0.0
+    scaling_factor: float = 1.0
     
     # Metadata
     parameters: Dict[str, Any] = field(default_factory=dict)
@@ -102,11 +182,24 @@ class StatisticalComparison:
     # Effect size
     cohens_d: float = 0.0
     cliff_delta: float = 0.0
+    hedge_g: float = 0.0
+    glass_delta: float = 0.0
+    
+    # Additional statistical tests
+    kruskal_wallis_statistic: Optional[float] = None
+    kruskal_wallis_pvalue: Optional[float] = None
+    levene_statistic: Optional[float] = None
+    levene_pvalue: Optional[float] = None
+    
+    # Confidence intervals
+    mean_diff_ci_lower: float = 0.0
+    mean_diff_ci_upper: float = 0.0
     
     # Significance
     is_significant: bool = False
     significance_level: float = 0.05
     interpretation: str = "No significant difference"
+    effect_size_interpretation: str = "Negligible"
 
 
 class BenchmarkProblem(ABC):
@@ -221,7 +314,7 @@ class AntennaDesignProblem(BenchmarkProblem):
         }
 
 
-class MultiObjectiveAntennaProble(BenchmarkProblem):
+class MultiObjectiveAntennaProblem(BenchmarkProblem):
     """Multi-objective antenna design problem."""
     
     def __init__(self, spec: AntennaSpec, solver):
@@ -317,11 +410,33 @@ class ComprehensiveBenchmarkSuite:
         self.algorithms = {}
         
         self.logger.info(f"Initialized benchmark suite with {self.num_runs} runs per algorithm")
+        
+        # Generate reproducibility hash
+        self.reproducibility_hash = self._generate_reproducibility_hash()
+        self.logger.info(f"Experiment reproducibility hash: {self.reproducibility_hash}")
+        
+        # Advanced analysis settings
+        self.bootstrap_samples = 1000
+        self.cv_folds = 5
+        self.confidence_level = 0.95
+        
+        # Multi-objective optimization settings
+        self.reference_point = None
+        self.ideal_point = None
+        self.nadir_point = None
+        
+        # Experimental protocol settings
+        self.experiment_metadata = self._initialize_experiment_metadata()
+        self.parameter_log = []
+        self.reproducibility_hash = None
     
     def register_algorithm(self, name: str, algorithm_factory: Callable):
         """Register algorithm for benchmarking."""
         self.algorithms[name] = algorithm_factory
         self.logger.info(f"Registered algorithm: {name}")
+        
+        # Log algorithm parameters for reproducibility
+        self._log_algorithm_parameters(name, algorithm_factory)
     
     def register_problem(self, problem: BenchmarkProblem):
         """Register benchmark problem."""
@@ -371,6 +486,9 @@ class ComprehensiveBenchmarkSuite:
                     
                     # Set unique random seed for reproducibility
                     run_seed = self.random_seed + run_id * 1000 + hash(algorithm_name) % 1000
+                    
+                    # Ensure reproducibility conditions
+                    repro_info = self._ensure_reproducibility(run_seed, algorithm_name, problem_name)
                     np.random.seed(run_seed)
                     
                     try:
@@ -422,6 +540,10 @@ class ComprehensiveBenchmarkSuite:
         # Save results
         self._save_results()
         
+        # Save reproducibility package
+        repro_package_dir = self.save_reproducibility_package(str(self.output_dir))
+        report['reproducibility_package'] = repro_package_dir
+        
         return report
     
     def _run_single_benchmark(
@@ -471,6 +593,24 @@ class ComprehensiveBenchmarkSuite:
         # Convergence analysis
         convergence_gen = self._detect_convergence_generation(convergence_history)
         improvement_rate = self._calculate_improvement_rate(convergence_history)
+        convergence_analysis = self._analyze_convergence_pattern(convergence_history)
+        
+        # Multi-objective metrics (if applicable)
+        multiobjective_metrics = None
+        if hasattr(problem, 'objectives') and problem.objectives > 1:
+            multiobjective_metrics = self._calculate_multiobjective_metrics(optimization_result, problem)
+        
+        # Bootstrap analysis for robustness
+        if len(convergence_history) > 5:
+            final_scores = np.array(convergence_history[-5:])  # Last 5 scores
+            bootstrap_results = self._perform_bootstrap_analysis(final_scores)
+            robustness_metrics = RobustnessMetrics(
+                bootstrap_confidence_interval=(bootstrap_results['ci_lower'], bootstrap_results['ci_upper']),
+                bootstrap_bias=bootstrap_results['bias'],
+                bootstrap_variance=bootstrap_results['std']**2
+            )
+        else:
+            robustness_metrics = RobustnessMetrics()
         
         # Function evaluations
         function_evals = getattr(optimization_result, 'total_iterations', self.max_evaluations)
@@ -486,11 +626,19 @@ class ComprehensiveBenchmarkSuite:
             computation_time=computation_time,
             convergence_generation=convergence_gen,
             improvement_rate=improvement_rate,
+            multiobjective_metrics=multiobjective_metrics,
+            convergence_analysis=convergence_analysis,
+            robustness_metrics=robustness_metrics,
+            # Legacy fields for compatibility
+            hypervolume=multiobjective_metrics.hypervolume if multiobjective_metrics else None,
+            igd_metric=multiobjective_metrics.igd_metric if multiobjective_metrics else None,
+            spread_metric=multiobjective_metrics.spread_metric if multiobjective_metrics else None,
             random_seed=random_seed,
             success=True
         )
     
-    def _detect_convergence_generation(self, history: List[float], tolerance: float = 1e-6) -> Optional[int]:
+    def _calculate_multiobjective_metrics(self, optimization_result, problem: BenchmarkProblem) -> MultiObjectiveMetrics:
+        \"\"\"Calculate comprehensive multi-objective optimization metrics.\"\"\"\n        if not hasattr(optimization_result, 'pareto_front') or optimization_result.pareto_front is None:\n            return MultiObjectiveMetrics()\n        \n        pareto_front = optimization_result.pareto_front\n        \n        # Generate reference point if not provided\n        if self.reference_point is None:\n            self.reference_point = np.max(pareto_front, axis=0) + 1.0\n        \n        # Calculate hypervolume\n        hypervolume = self._calculate_hypervolume(pareto_front, self.reference_point)\n        \n        # Generate reference Pareto front for IGD/GD calculations\n        if hasattr(problem, 'reference_pareto_front'):\n            ref_front = problem.reference_pareto_front\n        else:\n            # Generate synthetic reference front\n            ref_front = self._generate_reference_pareto_front(problem)\n        \n        # Calculate IGD and GD metrics\n        igd_metric = self._calculate_igd_metric(pareto_front, ref_front)\n        gd_metric = self._calculate_gd_metric(pareto_front, ref_front)\n        \n        # Calculate diversity metrics\n        spread_metric = self._calculate_spread_metric(pareto_front)\n        spacing_metric = self._calculate_spacing_metric(pareto_front)\n        \n        # Calculate coverage metric (simple version)\n        coverage_metric = len(pareto_front) / max(100, len(pareto_front))  # Normalized\n        \n        return MultiObjectiveMetrics(\n            hypervolume=hypervolume,\n            igd_metric=igd_metric,\n            gd_metric=gd_metric,\n            spread_metric=spread_metric,\n            spacing_metric=spacing_metric,\n            coverage_metric=coverage_metric,\n            pareto_front_size=len(pareto_front),\n            convergence_metric=1.0 / (1.0 + igd_metric) if igd_metric < float('inf') else 0.0,\n            diversity_metric=(1.0 - spread_metric) if spread_metric <= 1.0 else 0.0\n        )\n    \n    def _generate_reference_pareto_front(self, problem: BenchmarkProblem, n_points: int = 100) -> np.ndarray:\n        \"\"\"Generate reference Pareto front for comparison metrics.\"\"\"\n        if hasattr(problem, 'objectives') and problem.objectives > 1:\n            # For multi-objective problems, generate synthetic Pareto front\n            if problem.objectives == 2:\n                # 2D Pareto front\n                x = np.linspace(0, 1, n_points)\n                y = 1 - x**2  # Convex Pareto front\n                return np.column_stack([x, y])\n            elif problem.objectives == 3:\n                # 3D Pareto front\n                n_side = int(np.sqrt(n_points))\n                x = np.linspace(0, 1, n_side)\n                y = np.linspace(0, 1, n_side)\n                X, Y = np.meshgrid(x, y)\n                Z = 1 - (X**2 + Y**2)\n                Z = np.maximum(Z, 0)  # Ensure non-negative\n                \n                # Flatten and combine\n                points = np.column_stack([X.flatten(), Y.flatten(), Z.flatten()])\n                # Filter dominated points\n                return self._filter_pareto_front(points)\n        \n        # Default case: single objective\n        return np.array([[1.0]])\n    \n    def _filter_pareto_front(self, points: np.ndarray) -> np.ndarray:\n        \"\"\"Filter points to keep only Pareto-optimal solutions.\"\"\"\n        if points.size == 0:\n            return points\n        \n        is_pareto = np.ones(len(points), dtype=bool)\n        \n        for i, point in enumerate(points):\n            if is_pareto[i]:\n                # Check if this point dominates others\n                dominated = np.all(points >= point, axis=1) & np.any(points > point, axis=1)\n                is_pareto[dominated] = False\n        \n        return points[is_pareto]\n    \n    def _detect_convergence_generation(self, history: List[float], tolerance: float = 1e-6) -> Optional[int]:
         """Detect generation where algorithm converged."""
         if len(history) < 10:
             return None
@@ -588,15 +736,26 @@ class ComprehensiveBenchmarkSuite:
         # Effect sizes
         cohens_d = self._calculate_cohens_d(scores_a, scores_b)
         cliff_delta = self._calculate_cliff_delta(scores_a, scores_b)
+        hedge_g = self._calculate_hedge_g(scores_a, scores_b)
+        glass_delta = self._calculate_glass_delta(scores_a, scores_b)
+        
+        # Additional statistical tests
+        levene_stat, levene_pval = self._perform_levene_test(scores_a, scores_b)
+        
+        # Confidence interval for difference in means
+        ci_lower, ci_upper = self._calculate_confidence_interval(
+            scores_a, scores_b, self.confidence_level
+        )
         
         # Determine significance and interpretation
         is_significant = mw_pval < self.significance_level
+        effect_size_interpretation = self._interpret_effect_size(cohens_d)
         
         if is_significant:
             if mean_a > mean_b:
-                interpretation = f"{alg_a} significantly better than {alg_b}"
+                interpretation = f"{alg_a} significantly better than {alg_b} (p={mw_pval:.4f})"
             else:
-                interpretation = f"{alg_b} significantly better than {alg_a}"
+                interpretation = f"{alg_b} significantly better than {alg_a} (p={mw_pval:.4f})"
         else:
             interpretation = "No significant difference"
         
@@ -618,9 +777,16 @@ class ComprehensiveBenchmarkSuite:
             ttest_pvalue=ttest_pval,
             cohens_d=cohens_d,
             cliff_delta=cliff_delta,
+            hedge_g=hedge_g,
+            glass_delta=glass_delta,
+            levene_statistic=levene_stat,
+            levene_pvalue=levene_pval,
+            mean_diff_ci_lower=ci_lower,
+            mean_diff_ci_upper=ci_upper,
             is_significant=is_significant,
             significance_level=self.significance_level,
-            interpretation=interpretation
+            interpretation=interpretation,
+            effect_size_interpretation=effect_size_interpretation
         )
     
     def _calculate_cohens_d(self, group1: np.ndarray, group2: np.ndarray) -> float:
@@ -645,20 +811,188 @@ class ComprehensiveBenchmarkSuite:
         
         # Count comparisons
         greater = 0
+        equal = 0
         total = 0
         
         for x1 in group1:
             for x2 in group2:
                 if x1 > x2:
                     greater += 1
+                elif x1 == x2:
+                    equal += 1
                 total += 1
         
         if total == 0:
             return 0.0
         
-        return (greater / total) - 0.5
+        return (greater - (total - greater - equal)) / total
     
-    def _generate_comprehensive_report(self) -> Dict[str, Any]:
+    def _calculate_hedge_g(self, group1: np.ndarray, group2: np.ndarray) -> float:
+        """Calculate Hedge's g effect size (bias-corrected Cohen's d)."""
+        if len(group1) < 2 or len(group2) < 2:
+            return 0.0
+        
+        cohens_d = self._calculate_cohens_d(group1, group2)
+        n1, n2 = len(group1), len(group2)
+        df = n1 + n2 - 2
+        
+        # Bias correction factor
+        j = 1 - (3 / (4 * df - 1))
+        
+        return j * cohens_d
+    
+    def _calculate_glass_delta(self, group1: np.ndarray, group2: np.ndarray) -> float:
+        """Calculate Glass's delta effect size."""
+        if len(group2) < 2:
+            return 0.0
+        
+        control_std = np.std(group2, ddof=1)
+        if control_std == 0:
+            return 0.0
+        
+        return (np.mean(group1) - np.mean(group2)) / control_std
+    
+    def _calculate_confidence_interval(self, group1: np.ndarray, group2: np.ndarray, 
+                                     confidence_level: float = 0.95) -> Tuple[float, float]:
+        """Calculate confidence interval for difference in means."""
+        if len(group1) < 2 or len(group2) < 2:
+            return (0.0, 0.0)
+        
+        mean_diff = np.mean(group1) - np.mean(group2)
+        
+        # Pooled standard error
+        n1, n2 = len(group1), len(group2)
+        s1, s2 = np.std(group1, ddof=1), np.std(group2, ddof=1)
+        se_pooled = np.sqrt((s1**2 / n1) + (s2**2 / n2))
+        
+        # Degrees of freedom (Welch's t-test)
+        df = ((s1**2 / n1) + (s2**2 / n2))**2 / ((s1**2 / n1)**2 / (n1 - 1) + (s2**2 / n2)**2 / (n2 - 1))
+        
+        # Critical value
+        alpha = 1 - confidence_level
+        t_critical = stats.t.ppf(1 - alpha/2, df)
+        
+        margin_error = t_critical * se_pooled
+        
+        return (mean_diff - margin_error, mean_diff + margin_error)
+    
+    def _perform_kruskal_wallis_test(self, groups: List[np.ndarray]) -> Tuple[float, float]:
+        """Perform Kruskal-Wallis H-test for multiple groups."""
+        if len(groups) < 2 or any(len(group) == 0 for group in groups):
+            return 0.0, 1.0
+        
+        try:
+            statistic, pvalue = stats.kruskal(*groups)
+            return statistic, pvalue
+        except ValueError:
+            return 0.0, 1.0
+    
+    def _perform_levene_test(self, group1: np.ndarray, group2: np.ndarray) -> Tuple[float, float]:
+        """Perform Levene's test for equal variances."""
+        if len(group1) < 2 or len(group2) < 2:
+            return 0.0, 1.0
+        
+        try:
+            statistic, pvalue = stats.levene(group1, group2)
+            return statistic, pvalue
+        except ValueError:
+            return 0.0, 1.0
+    
+    def _interpret_effect_size(self, cohens_d: float) -> str:
+        """Interpret effect size magnitude."""
+        abs_d = abs(cohens_d)
+        if abs_d < 0.2:
+            return "Negligible"
+        elif abs_d < 0.5:
+            return "Small"
+        elif abs_d < 0.8:
+            return "Medium"
+        else:
+            return "Large"
+    
+    def _calculate_hypervolume(self, pareto_front: np.ndarray, reference_point: np.ndarray) -> float:
+        """Calculate hypervolume indicator for multi-objective optimization."""
+        if pareto_front.size == 0 or len(pareto_front.shape) != 2:
+            return 0.0
+        
+        # Simple hypervolume calculation for 2D/3D cases
+        if pareto_front.shape[1] == 2:
+            return self._hypervolume_2d(pareto_front, reference_point)
+        elif pareto_front.shape[1] == 3:
+            return self._hypervolume_3d(pareto_front, reference_point)
+        else:
+            # For higher dimensions, use approximation
+            return self._hypervolume_approximate(pareto_front, reference_point)
+    
+    def _hypervolume_2d(self, front: np.ndarray, ref_point: np.ndarray) -> float:
+        """Calculate 2D hypervolume."""
+        if front.size == 0:
+            return 0.0
+        
+        # Sort by first objective
+        sorted_front = front[np.argsort(front[:, 0])]
+        
+        hypervolume = 0.0
+        for i in range(len(sorted_front)):
+            if i == 0:
+                width = ref_point[0] - sorted_front[i, 0]
+            else:
+                width = sorted_front[i-1, 0] - sorted_front[i, 0]
+            
+            height = ref_point[1] - sorted_front[i, 1]
+            hypervolume += width * height
+        
+        return max(0.0, hypervolume)
+    
+    def _hypervolume_3d(self, front: np.ndarray, ref_point: np.ndarray) -> float:
+        """Calculate 3D hypervolume (simplified)."""
+        if front.size == 0:
+            return 0.0
+        
+        # Simplified 3D hypervolume calculation
+        volume = 0.0
+        for point in front:
+            contribution = 1.0
+            for i in range(3):
+                contribution *= max(0.0, ref_point[i] - point[i])
+            volume += contribution
+        
+        return volume / len(front)  # Normalized
+    
+    def _hypervolume_approximate(self, front: np.ndarray, ref_point: np.ndarray) -> float:
+        """Approximate hypervolume for high dimensions."""
+        if front.size == 0:
+            return 0.0
+        
+        # Monte Carlo approximation
+        n_samples = 10000
+        n_objectives = front.shape[1]
+        
+        # Generate random points in the hypervolume region
+        dominated_count = 0
+        for _ in range(n_samples):
+            random_point = np.random.uniform(
+                low=np.min(front, axis=0),
+                high=ref_point,
+                size=n_objectives
+            )
+            
+            # Check if random point is dominated by any point in front
+            dominated = False
+            for front_point in front:
+                if np.all(front_point <= random_point):
+                    dominated = True
+                    break
+            
+            if dominated:
+                dominated_count += 1
+        
+        # Estimate hypervolume
+        total_volume = np.prod(ref_point - np.min(front, axis=0))
+        return total_volume * (dominated_count / n_samples)
+    
+    def _calculate_igd_metric(self, obtained_front: np.ndarray, reference_front: np.ndarray) -> float:
+        \"\"\"Calculate Inverted Generational Distance.\"\"\"\n        if reference_front.size == 0 or obtained_front.size == 0:\n            return float('inf')\n        \n        # Calculate minimum distance from each reference point to obtained front\n        distances = []\n        for ref_point in reference_front:\n            min_distance = min(euclidean(ref_point, point) for point in obtained_front)\n            distances.append(min_distance)\n        \n        return np.mean(distances)\n    \n    def _calculate_gd_metric(self, obtained_front: np.ndarray, reference_front: np.ndarray) -> float:\n        \"\"\"Calculate Generational Distance.\"\"\"\n        if obtained_front.size == 0 or reference_front.size == 0:\n            return float('inf')\n        \n        # Calculate minimum distance from each obtained point to reference front\n        distances = []\n        for obtained_point in obtained_front:\n            min_distance = min(euclidean(obtained_point, ref_point) for ref_point in reference_front)\n            distances.append(min_distance)\n        \n        return np.mean(distances)\n    \n    def _calculate_spread_metric(self, pareto_front: np.ndarray) -> float:\n        \"\"\"Calculate spread metric for diversity assessment.\"\"\"\n        if pareto_front.size == 0 or len(pareto_front) < 2:\n            return 0.0\n        \n        # Calculate distances between consecutive points\n        sorted_indices = np.lexsort(pareto_front.T)\n        sorted_front = pareto_front[sorted_indices]\n        \n        distances = []\n        for i in range(len(sorted_front) - 1):\n            distance = euclidean(sorted_front[i], sorted_front[i + 1])\n            distances.append(distance)\n        \n        if len(distances) == 0:\n            return 0.0\n        \n        # Calculate spread as standard deviation of distances\n        mean_distance = np.mean(distances)\n        spread = np.std(distances) / mean_distance if mean_distance > 0 else 0.0\n        \n        return spread\n    \n    def _calculate_spacing_metric(self, pareto_front: np.ndarray) -> float:\n        \"\"\"Calculate spacing metric for uniformity assessment.\"\"\"\n        if len(pareto_front) < 2:\n            return 0.0\n        \n        # Calculate nearest neighbor distances\n        nn_distances = []\n        for i, point in enumerate(pareto_front):\n            distances_to_others = [euclidean(point, other) for j, other in enumerate(pareto_front) if i != j]\n            if distances_to_others:\n                nn_distances.append(min(distances_to_others))\n        \n        if len(nn_distances) == 0:\n            return 0.0\n        \n        # Calculate spacing as standard deviation of nearest neighbor distances\n        mean_nn_distance = np.mean(nn_distances)\n        spacing = np.std(nn_distances) / mean_nn_distance if mean_nn_distance > 0 else 0.0\n        \n        return spacing\n    \n    def _perform_bootstrap_analysis(self, data: np.ndarray, n_bootstrap: int = 1000, \n                                  statistic_func: Callable = np.mean) -> Dict[str, float]:\n        \"\"\"Perform bootstrap analysis for statistical robustness.\"\"\"\n        if len(data) == 0:\n            return {'mean': 0.0, 'std': 0.0, 'ci_lower': 0.0, 'ci_upper': 0.0}\n        \n        bootstrap_statistics = []\n        \n        for _ in range(n_bootstrap):\n            # Resample with replacement\n            resampled = resample(data, replace=True, n_samples=len(data))\n            statistic = statistic_func(resampled)\n            bootstrap_statistics.append(statistic)\n        \n        bootstrap_statistics = np.array(bootstrap_statistics)\n        \n        # Calculate confidence intervals\n        alpha = 1 - self.confidence_level\n        ci_lower = np.percentile(bootstrap_statistics, 100 * alpha / 2)\n        ci_upper = np.percentile(bootstrap_statistics, 100 * (1 - alpha / 2))\n        \n        return {\n            'mean': np.mean(bootstrap_statistics),\n            'std': np.std(bootstrap_statistics),\n            'ci_lower': ci_lower,\n            'ci_upper': ci_upper,\n            'bias': np.mean(bootstrap_statistics) - statistic_func(data)\n        }\n    \n    def _perform_cross_validation_analysis(self, results: List[BenchmarkResult], \n                                         algorithm_name: str) -> Dict[str, float]:\n        \"\"\"Perform cross-validation analysis for algorithm stability.\"\"\"\n        if not results:\n            return {'cv_mean': 0.0, 'cv_std': 0.0, 'cv_score': 0.0}\n        \n        scores = [r.best_objective for r in results if r.algorithm_name == algorithm_name]\n        \n        if len(scores) < self.cv_folds:\n            return {'cv_mean': np.mean(scores), 'cv_std': np.std(scores), 'cv_score': 1.0}\n        \n        # Simple k-fold cross-validation simulation\n        kf = KFold(n_splits=self.cv_folds, shuffle=True, random_state=self.random_seed)\n        cv_scores = []\n        \n        scores_array = np.array(scores)\n        for train_idx, test_idx in kf.split(scores_array):\n            # In a real CV, we would retrain the algorithm on train_idx\n            # Here we simulate by using the test set performance\n            test_scores = scores_array[test_idx]\n            cv_scores.append(np.mean(test_scores))\n        \n        cv_mean = np.mean(cv_scores)\n        cv_std = np.std(cv_scores)\n        cv_score = 1.0 / (1.0 + cv_std) if cv_std > 0 else 1.0\n        \n        return {\n            'cv_mean': cv_mean,\n            'cv_std': cv_std,\n            'cv_score': cv_score\n        }\n    \n    def _analyze_convergence_pattern(self, history: List[float]) -> ConvergenceAnalysis:\n        \"\"\"Analyze convergence patterns in optimization history.\"\"\"\n        if len(history) < 2:\n            return ConvergenceAnalysis()\n        \n        history_array = np.array(history)\n        \n        # Calculate convergence rate\n        improvements = np.diff(history_array)\n        positive_improvements = improvements[improvements > 0]\n        convergence_rate = np.mean(positive_improvements) if len(positive_improvements) > 0 else 0.0\n        \n        # Detect plateaus (periods with little improvement)\n        plateau_threshold = np.std(history_array) * 0.1\n        plateaus = []\n        current_plateau_start = None\n        \n        for i in range(1, len(history)):\n            improvement = abs(history[i] - history[i-1])\n            \n            if improvement < plateau_threshold:\n                if current_plateau_start is None:\n                    current_plateau_start = i - 1\n            else:\n                if current_plateau_start is not None:\n                    plateau_length = i - current_plateau_start\n                    if plateau_length >= 5:  # Minimum plateau length\n                        plateaus.append((current_plateau_start, i))\n                    current_plateau_start = None\n        \n        # Final plateau check\n        if current_plateau_start is not None:\n            plateau_length = len(history) - current_plateau_start\n            if plateau_length >= 5:\n                plateaus.append((current_plateau_start, len(history)))\n        \n        # Calculate stability (inverse of volatility)\n        volatility = np.std(improvements) / np.mean(np.abs(improvements)) if np.mean(np.abs(improvements)) > 0 else 0\n        stability = 1.0 / (1.0 + volatility)\n        \n        # Trend analysis\n        if len(history) >= 10:\n            # Linear trend\n            x = np.arange(len(history))\n            slope, intercept, r_value, p_value, std_err = stats.linregress(x, history)\n            trend_analysis = {\n                'slope': slope,\n                'r_squared': r_value**2,\n                'p_value': p_value\n            }\n        else:\n            trend_analysis = {'slope': 0.0, 'r_squared': 0.0, 'p_value': 1.0}\n        \n        return ConvergenceAnalysis(\n            convergence_rate=convergence_rate,\n            convergence_stability=stability,\n            plateau_detection=plateaus,\n            volatility_measure=volatility,\n            trend_analysis=trend_analysis,\n            target_reached=history[-1] > np.percentile(history, 90),\n            success_rate=len(positive_improvements) / len(improvements) if len(improvements) > 0 else 0.0\n        )\n    \n    def _generate_comprehensive_report(self) -> Dict[str, Any]:
         """Generate comprehensive benchmark report."""
         
         # Group results for analysis

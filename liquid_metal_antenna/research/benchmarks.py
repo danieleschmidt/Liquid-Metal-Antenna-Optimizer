@@ -178,6 +178,79 @@ class ResearchBenchmarks:
             'function': lambda x: np.sum(100 * (x[1:] - x[:-1]**2)**2 + (1 - x[:-1])**2),
             'description': 'Non-convex function with narrow curved valley'
         }
+        
+        # Ackley function (multimodal, many local minima)
+        self.benchmark_suite['ackley_function'] = {
+            'name': 'Ackley Function',
+            'type': 'mathematical',
+            'difficulty': 'hard',
+            'characteristics': ['multimodal', 'highly_irregular', 'many_local_minima'],
+            'dimension': 20,
+            'known_optimum': 0.0,
+            'bounds': [(-32.768, 32.768)] * 20,
+            'function': lambda x: -20 * np.exp(-0.2 * np.sqrt(np.mean(x**2))) - np.exp(np.mean(np.cos(2 * np.pi * x))) + 20 + np.e,
+            'description': 'Highly multimodal function with nearly flat outer region'
+        }
+        
+        # Griewank function (multimodal with interdependent variables)
+        self.benchmark_suite['griewank_function'] = {
+            'name': 'Griewank Function',
+            'type': 'mathematical',
+            'difficulty': 'medium',
+            'characteristics': ['multimodal', 'non_separable', 'scalable'],
+            'dimension': 20,
+            'known_optimum': 0.0,
+            'bounds': [(-600.0, 600.0)] * 20,
+            'function': lambda x: 1 + np.sum(x**2) / 4000 - np.prod(np.cos(x / np.sqrt(np.arange(1, len(x)+1)))),
+            'description': 'Multimodal function with interdependent variables'
+        }
+        
+        # Schwefel function (deceptive global optimum)
+        self.benchmark_suite['schwefel_function'] = {
+            'name': 'Schwefel Function',
+            'type': 'mathematical',
+            'difficulty': 'hard',
+            'characteristics': ['multimodal', 'deceptive', 'global_optimum_far_from_center'],
+            'dimension': 20,
+            'known_optimum': 0.0,
+            'bounds': [(-500.0, 500.0)] * 20,
+            'function': lambda x: 418.9829 * len(x) - np.sum(x * np.sin(np.sqrt(np.abs(x)))),
+            'description': 'Deceptive function where global optimum is far from local optima'
+        }
+        
+        # Levy function (multimodal with challenging landscape)
+        self.benchmark_suite['levy_function'] = {
+            'name': 'Levy Function',
+            'type': 'mathematical',
+            'difficulty': 'medium',
+            'characteristics': ['multimodal', 'non_separable', 'challenging_landscape'],
+            'dimension': 20,
+            'known_optimum': 0.0,
+            'bounds': [(-10.0, 10.0)] * 20,
+            'function': self._levy_function,
+            'description': 'Multimodal function with challenging optimization landscape'
+        }
+        
+        # Michalewicz function (highly multimodal with steep ridges)
+        self.benchmark_suite['michalewicz_function'] = {
+            'name': 'Michalewicz Function',
+            'type': 'mathematical',
+            'difficulty': 'hard',
+            'characteristics': ['multimodal', 'steep_ridges', 'many_local_minima'],
+            'dimension': 10,  # Typically used with smaller dimensions
+            'known_optimum': -9.66015 if 10 == 10 else None,  # Known for D=10
+            'bounds': [(0.0, np.pi)] * 10,
+            'function': lambda x: -np.sum(np.sin(x) * (np.sin(np.arange(1, len(x)+1) * x**2 / np.pi))**(2*10)),
+            'description': 'Highly multimodal function with steep ridges and many local minima'
+        }
+    
+    def _levy_function(self, x: np.ndarray) -> float:
+        """Levy function implementation."""
+        w = 1 + (x - 1) / 4
+        term1 = np.sin(np.pi * w[0])**2
+        term2 = np.sum((w[:-1] - 1)**2 * (1 + 10 * np.sin(np.pi * w[:-1] + 1)**2))
+        term3 = (w[-1] - 1)**2 * (1 + np.sin(2 * np.pi * w[-1])**2)
+        return term1 + term2 + term3
     
     def _add_antenna_benchmarks(self) -> None:
         """Add antenna-specific optimization benchmarks."""
@@ -278,6 +351,117 @@ class ResearchBenchmarks:
             'uncertainty_model': 'manufacturing',
             'description': 'Robust antenna design considering manufacturing uncertainties'
         }
+        
+        # MIMO antenna array optimization
+        self.benchmark_suite['mimo_antenna_array'] = {
+            'name': 'MIMO Antenna Array Optimization',
+            'type': 'antenna',
+            'difficulty': 'extreme',
+            'characteristics': ['mimo_system', 'array_design', 'isolation_optimization'],
+            'spec': AntennaSpec(
+                frequency_range=(3.4e9, 3.8e9),
+                substrate='rogers_4003c',
+                metal='galinstan',
+                size_constraint=(60, 60, 3.2)
+            ),
+            'objective': 'mimo_capacity',
+            'constraints': {
+                'min_isolation_db': 20,
+                'max_correlation': 0.1,
+                'min_efficiency': 0.7,
+                'n_elements': 4
+            },
+            'target_performance': {'capacity_bps_hz': 15.0, 'isolation_db': 25.0},
+            'description': 'MIMO antenna array with isolation and capacity optimization'
+        }
+        
+        # Metamaterial-enhanced antenna
+        self.benchmark_suite['metamaterial_antenna'] = {
+            'name': 'Metamaterial-Enhanced Antenna',
+            'type': 'antenna',
+            'difficulty': 'extreme',
+            'characteristics': ['metamaterial', 'engineered_response', 'complex_structure'],
+            'spec': AntennaSpec(
+                frequency_range=(28e9, 30e9),  # mmWave
+                substrate='rogers_5880',
+                metal='galinstan',
+                size_constraint=(20, 20, 4.0)
+            ),
+            'objective': 'metamaterial_performance',
+            'constraints': {
+                'min_directivity': 15,
+                'max_sll_db': -20,
+                'metamaterial_cells': 16,
+                'fabrication_complexity': 'high'
+            },
+            'description': 'Metamaterial-enhanced antenna for mmWave applications'
+        }
+        
+        # Circularly polarized antenna design
+        self.benchmark_suite['circularly_polarized_antenna'] = {
+            'name': 'Circularly Polarized Antenna Design',
+            'type': 'antenna',
+            'difficulty': 'hard',
+            'characteristics': ['circular_polarization', 'axial_ratio_optimization', 'feed_design'],
+            'spec': AntennaSpec(
+                frequency_range=(1.5e9, 1.6e9),  # GPS L1 band
+                substrate='rogers_4003c',
+                metal='galinstan',
+                size_constraint=(40, 40, 3.2)
+            ),
+            'objective': 'circular_polarization',
+            'constraints': {
+                'max_axial_ratio_db': 3.0,
+                'min_gain_dbi': 5.0,
+                'max_vswr': 2.0
+            },
+            'target_performance': {'axial_ratio_db': 1.0, 'gain_dbi': 8.0},
+            'description': 'Circularly polarized antenna with axial ratio optimization'
+        }
+        
+        # Ultra-wideband antenna design
+        self.benchmark_suite['uwb_antenna'] = {
+            'name': 'Ultra-Wideband Antenna Design',
+            'type': 'antenna',
+            'difficulty': 'extreme',
+            'characteristics': ['ultra_wideband', 'impedance_matching', 'group_delay'],
+            'spec': AntennaSpec(
+                frequency_range=(3.1e9, 10.6e9),  # UWB band
+                substrate='rogers_5880',
+                metal='galinstan',
+                size_constraint=(30, 30, 2.5)
+            ),
+            'objective': 'uwb_performance',
+            'constraints': {
+                'max_vswr': 2.0,
+                'max_group_delay_variation_ns': 1.0,
+                'min_fractional_bandwidth': 1.0,
+                'fidelity_factor': 0.8
+            },
+            'description': 'Ultra-wideband antenna with group delay optimization'
+        }
+        
+        # Frequency-reconfigurable antenna
+        self.benchmark_suite['frequency_reconfigurable_antenna'] = {
+            'name': 'Frequency-Reconfigurable Antenna',
+            'type': 'antenna',
+            'difficulty': 'extreme',
+            'characteristics': ['frequency_reconfigurable', 'liquid_metal_switching', 'multi_band'],
+            'spec': AntennaSpec(
+                frequency_range=(1.8e9, 6.0e9),
+                substrate='rogers_4003c',
+                metal='galinstan',
+                size_constraint=(35, 35, 3.2)
+            ),
+            'objective': 'reconfigurable_performance',
+            'constraints': {
+                'operating_bands': [1.9e9, 2.4e9, 3.5e9, 5.2e9],
+                'switching_time_ms': 10,
+                'min_gain_per_band': 3.0,
+                'isolation_between_states_db': 30
+            },
+            'description': 'Frequency-reconfigurable antenna using liquid metal switching'
+        }
     
     def _add_scalability_benchmarks(self) -> None:
         """Add scalability testing benchmarks."""
@@ -315,6 +499,51 @@ class ResearchBenchmarks:
             'objective': 'multi_frequency_gain',
             'description': 'Simultaneous optimization across multiple frequency bands'
         }
+        
+        # Massive array antenna design
+        self.benchmark_suite['massive_array_antenna'] = {
+            'name': 'Massive Array Antenna Design',
+            'type': 'scalability',
+            'difficulty': 'extreme',
+            'characteristics': ['massive_array', 'beam_forming', 'many_elements'],
+            'dimension': 256,  # 16x16 element array
+            'spec': AntennaSpec(
+                frequency_range=(26.5e9, 29.5e9),  # 5G mmWave
+                substrate='rogers_5880',
+                metal='galinstan',
+                size_constraint=(100, 100, 5.0)
+            ),
+            'objective': 'array_performance',
+            'constraints': {
+                'n_elements': 256,
+                'min_directivity': 30,
+                'max_sll_db': -25,
+                'grating_lobe_suppression': True
+            },
+            'description': 'Massive array antenna for 5G mmWave applications'
+        }
+        
+        # Multi-layer 3D antenna structure
+        self.benchmark_suite['3d_multilayer_antenna'] = {
+            'name': '3D Multi-Layer Antenna Structure',
+            'type': 'scalability',
+            'difficulty': 'extreme',
+            'characteristics': ['3d_structure', 'multi_layer', 'complex_geometry'],
+            'dimension': 512,  # 8x8x8 voxel structure
+            'spec': AntennaSpec(
+                frequency_range=(2.0e9, 8.0e9),
+                substrate='rogers_4003c',
+                metal='galinstan',
+                size_constraint=(60, 60, 12.8)  # 8 layers of 1.6mm each
+            ),
+            'objective': 'volumetric_performance',
+            'constraints': {
+                'layers': 8,
+                'via_constraints': True,
+                'manufacturing_feasibility': 0.9
+            },
+            'description': '3D multi-layer antenna structure optimization'
+        }
     
     def _add_robustness_benchmarks(self) -> None:
         """Add robustness and reliability benchmarks."""
@@ -351,6 +580,72 @@ class ResearchBenchmarks:
             'objective': 'robust_gain',
             'uncertainty_level': 0.05,  # 5% parameter uncertainty
             'description': 'Robust optimization under parameter uncertainties'
+        }
+        
+        # Environmental variation robustness
+        self.benchmark_suite['environmental_robustness'] = {
+            'name': 'Environmental Variation Robustness',
+            'type': 'robustness',
+            'difficulty': 'hard',
+            'characteristics': ['environmental_variations', 'temperature_effects', 'humidity_effects'],
+            'spec': AntennaSpec(
+                frequency_range=(2.4e9, 2.5e9),
+                substrate='fr4',
+                metal='galinstan',
+                size_constraint=(30, 30, 1.6)
+            ),
+            'objective': 'environmental_robust_gain',
+            'environmental_conditions': {
+                'temperature_range': (253, 373),  # -20°C to 100°C
+                'humidity_range': (0, 95),        # 0% to 95% RH
+                'pressure_range': (800, 1200)     # 800 to 1200 hPa
+            },
+            'description': 'Antenna robustness under environmental variations'
+        }
+        
+        # Manufacturing tolerance robustness
+        self.benchmark_suite['manufacturing_tolerance'] = {
+            'name': 'Manufacturing Tolerance Robustness',
+            'type': 'robustness',
+            'difficulty': 'extreme',
+            'characteristics': ['manufacturing_tolerances', 'yield_optimization', 'process_variations'],
+            'spec': AntennaSpec(
+                frequency_range=(3.4e9, 3.8e9),
+                substrate='rogers_4003c',
+                metal='galinstan',
+                size_constraint=(25, 25, 3.2)
+            ),
+            'objective': 'yield_optimized_performance',
+            'manufacturing_tolerances': {
+                'dimension_tolerance_mm': 0.1,
+                'substrate_thickness_tolerance_mm': 0.05,
+                'metallization_thickness_tolerance_um': 2.0,
+                'registration_tolerance_mm': 0.05
+            },
+            'target_yield': 0.95,
+            'description': 'Robust antenna design considering manufacturing tolerances'
+        }
+        
+        # Multi-physics coupling robustness
+        self.benchmark_suite['multiphysics_robustness'] = {
+            'name': 'Multi-Physics Coupling Robustness',
+            'type': 'robustness',
+            'difficulty': 'extreme',
+            'characteristics': ['multiphysics_coupling', 'thermal_effects', 'mechanical_stress'],
+            'spec': AntennaSpec(
+                frequency_range=(2.4e9, 2.5e9),
+                substrate='rogers_4003c',
+                metal='galinstan',
+                size_constraint=(35, 35, 3.2)
+            ),
+            'objective': 'multiphysics_robust_performance',
+            'coupling_effects': {
+                'thermal_coefficient_ppm_k': 25,
+                'mechanical_stress_mpa': 50,
+                'fluid_flow_effects': True,
+                'electromagnetic_heating': True
+            },
+            'description': 'Antenna robustness under multi-physics coupling effects'
         }
     
     def run_comprehensive_benchmark(
@@ -584,13 +879,25 @@ class ResearchBenchmarks:
         elif 'uncertainty_quantification' in benchmark_config.get('characteristics', []):
             return self._run_robust_benchmark(algorithm, benchmark_config)
         else:
-            return algorithm.optimize(
-                spec=benchmark_config['spec'],
-                objective=benchmark_config['objective'],
-                constraints=benchmark_config.get('constraints', {}),
-                max_iterations=50,  # Limited for benchmarking
-                target_accuracy=1e-6
-            )
+            # Handle different antenna benchmark types
+            if 'mimo' in benchmark_config.get('characteristics', []):
+                return self._run_mimo_benchmark(algorithm, benchmark_config)
+            elif 'metamaterial' in benchmark_config.get('characteristics', []):
+                return self._run_metamaterial_benchmark(algorithm, benchmark_config)
+            elif 'circular_polarization' in benchmark_config.get('characteristics', []):
+                return self._run_polarization_benchmark(algorithm, benchmark_config)
+            elif 'uwb' in benchmark_config.get('characteristics', []):
+                return self._run_uwb_benchmark(algorithm, benchmark_config)
+            elif 'reconfigurable' in benchmark_config.get('characteristics', []):
+                return self._run_reconfigurable_benchmark(algorithm, benchmark_config)
+            else:
+                return algorithm.optimize(
+                    spec=benchmark_config['spec'],
+                    objective=benchmark_config['objective'],
+                    constraints=benchmark_config.get('constraints', {}),
+                    max_iterations=50,  # Limited for benchmarking
+                    target_accuracy=1e-6
+                )
     
     def _run_scalability_benchmark(
         self,
@@ -602,13 +909,21 @@ class ResearchBenchmarks:
         # Test with increased problem size
         max_iterations = min(200, benchmark_config.get('dimension', 50) * 2)
         
-        return algorithm.optimize(
-            spec=benchmark_config['spec'],
-            objective=benchmark_config['objective'],
-            constraints=benchmark_config.get('constraints', {}),
-            max_iterations=max_iterations,
-            target_accuracy=1e-6
-        )
+        # Handle different scalability types
+        if 'massive_array' in benchmark_config.get('characteristics', []):
+            return self._run_massive_array_benchmark(algorithm, benchmark_config, max_iterations)
+        elif '3d_structure' in benchmark_config.get('characteristics', []):
+            return self._run_3d_structure_benchmark(algorithm, benchmark_config, max_iterations)
+        elif 'multi_frequency' in benchmark_config.get('characteristics', []):
+            return self._run_multifrequency_benchmark(algorithm, benchmark_config, max_iterations)
+        else:
+            return algorithm.optimize(
+                spec=benchmark_config['spec'],
+                objective=benchmark_config['objective'],
+                constraints=benchmark_config.get('constraints', {}),
+                max_iterations=max_iterations,
+                target_accuracy=1e-6
+            )
     
     def _run_robustness_benchmark(
         self,
@@ -1252,7 +1567,7 @@ Algorithm & Overall Score & Easy & Medium & Hard \\\\
             )
 
 
-def create_research_algorithm_suite(solver: BaseSolver, surrogate: Optional[NeuralSurrogate] = None) -> Dict[str, NovelOptimizer]:
+    def _run_mimo_benchmark(self, algorithm: NovelOptimizer, benchmark_config: Dict[str, Any]) -> OptimizationResult:\n        \"\"\"Run MIMO antenna benchmark with specialized objectives.\"\"\"\n        return algorithm.optimize(\n            spec=benchmark_config['spec'],\n            objective='mimo_performance',\n            constraints=benchmark_config.get('constraints', {}),\n            max_iterations=40,\n            target_accuracy=1e-5\n        )\n    \n    def _run_metamaterial_benchmark(self, algorithm: NovelOptimizer, benchmark_config: Dict[str, Any]) -> OptimizationResult:\n        \"\"\"Run metamaterial-enhanced antenna benchmark.\"\"\"\n        return algorithm.optimize(\n            spec=benchmark_config['spec'],\n            objective='directivity',\n            constraints=benchmark_config.get('constraints', {}),\n            max_iterations=60,\n            target_accuracy=1e-5\n        )\n    \n    def _run_polarization_benchmark(self, algorithm: NovelOptimizer, benchmark_config: Dict[str, Any]) -> OptimizationResult:\n        \"\"\"Run circular polarization benchmark.\"\"\"\n        return algorithm.optimize(\n            spec=benchmark_config['spec'],\n            objective='axial_ratio',\n            constraints=benchmark_config.get('constraints', {}),\n            max_iterations=45,\n            target_accuracy=1e-5\n        )\n    \n    def _run_uwb_benchmark(self, algorithm: NovelOptimizer, benchmark_config: Dict[str, Any]) -> OptimizationResult:\n        \"\"\"Run ultra-wideband antenna benchmark.\"\"\"\n        return algorithm.optimize(\n            spec=benchmark_config['spec'],\n            objective='uwb_performance',\n            constraints=benchmark_config.get('constraints', {}),\n            max_iterations=70,\n            target_accuracy=1e-5\n        )\n    \n    def _run_reconfigurable_benchmark(self, algorithm: NovelOptimizer, benchmark_config: Dict[str, Any]) -> OptimizationResult:\n        \"\"\"Run frequency-reconfigurable antenna benchmark.\"\"\"\n        return algorithm.optimize(\n            spec=benchmark_config['spec'],\n            objective='reconfigurable_performance',\n            constraints=benchmark_config.get('constraints', {}),\n            max_iterations=80,\n            target_accuracy=1e-5\n        )\n    \n    def _run_massive_array_benchmark(self, algorithm: NovelOptimizer, benchmark_config: Dict[str, Any], \n                                   max_iterations: int) -> OptimizationResult:\n        \"\"\"Run massive array antenna benchmark.\"\"\"\n        return algorithm.optimize(\n            spec=benchmark_config['spec'],\n            objective='array_performance',\n            constraints=benchmark_config.get('constraints', {}),\n            max_iterations=max_iterations,\n            target_accuracy=1e-5\n        )\n    \n    def _run_3d_structure_benchmark(self, algorithm: NovelOptimizer, benchmark_config: Dict[str, Any],\n                                  max_iterations: int) -> OptimizationResult:\n        \"\"\"Run 3D multi-layer structure benchmark.\"\"\"\n        return algorithm.optimize(\n            spec=benchmark_config['spec'],\n            objective='volumetric_performance',\n            constraints=benchmark_config.get('constraints', {}),\n            max_iterations=max_iterations,\n            target_accuracy=1e-5\n        )\n    \n    def _run_multifrequency_benchmark(self, algorithm: NovelOptimizer, benchmark_config: Dict[str, Any],\n                                    max_iterations: int) -> OptimizationResult:\n        \"\"\"Run multi-frequency optimization benchmark.\"\"\"\n        return algorithm.optimize(\n            spec=benchmark_config['spec'],\n            objective='multi_frequency_performance',\n            constraints=benchmark_config.get('constraints', {}),\n            max_iterations=max_iterations,\n            target_accuracy=1e-5\n        )\n\n\ndef create_research_algorithm_suite(solver: BaseSolver, surrogate: Optional[NeuralSurrogate] = None) -> Dict[str, NovelOptimizer]:
     """
     Create comprehensive suite of research algorithms for benchmarking.
     
