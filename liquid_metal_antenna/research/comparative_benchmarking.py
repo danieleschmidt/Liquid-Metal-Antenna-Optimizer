@@ -47,6 +47,137 @@ from ..utils.logging_config import get_logger
 
 
 @dataclass
+class StatisticalComparison:
+    """Statistical comparison results between algorithms."""
+    
+    algorithm_a: str
+    algorithm_b: str
+    metric: str
+    
+    # Basic statistics
+    mean_a: float
+    mean_b: float
+    std_a: float
+    std_b: float
+    median_a: float
+    median_b: float
+    
+    # Statistical tests
+    mannwhitney_statistic: float
+    mannwhitney_pvalue: float
+    wilcoxon_statistic: Optional[float] = None
+    wilcoxon_pvalue: Optional[float] = None
+    ttest_statistic: float = 0.0
+    ttest_pvalue: float = 1.0
+    
+    # Effect size measures
+    cohens_d: float = 0.0
+    cliffs_delta: float = 0.0
+    vargha_delaney_a12: float = 0.5
+    
+    # Confidence intervals
+    confidence_interval_a: Tuple[float, float] = (0.0, 0.0)
+    confidence_interval_b: Tuple[float, float] = (0.0, 0.0)
+    
+    # Practical significance
+    practical_significance: bool = False
+    statistical_significance: bool = False
+    significant_at_alpha: float = 0.05
+    
+    # Additional metrics
+    sample_size_a: int = 0
+    sample_size_b: int = 0
+    power_analysis: Optional[float] = None
+    
+    def interpretation(self) -> str:
+        """Provide interpretation of statistical results."""
+        interpretation = []
+        
+        if self.statistical_significance:
+            interpretation.append(f"Statistically significant (p={self.mannwhitney_pvalue:.4f})")
+        else:
+            interpretation.append(f"Not statistically significant (p={self.mannwhitney_pvalue:.4f})")
+        
+        # Effect size interpretation
+        abs_cohens_d = abs(self.cohens_d)
+        if abs_cohens_d < 0.2:
+            effect_size = "negligible"
+        elif abs_cohens_d < 0.5:
+            effect_size = "small"
+        elif abs_cohens_d < 0.8:
+            effect_size = "medium"
+        else:
+            effect_size = "large"
+        
+        interpretation.append(f"Effect size: {effect_size} (Cohen's d={self.cohens_d:.3f})")
+        
+        # Practical significance
+        if self.practical_significance:
+            interpretation.append("Practically significant difference")
+        else:
+            interpretation.append("No practical significance")
+            
+        return "; ".join(interpretation)
+
+
+@dataclass
+class ExperimentalProtocol:
+    """Experimental protocol for reproducible benchmarking."""
+    
+    name: str
+    description: str
+    
+    # Experimental design
+    num_independent_runs: int = 30
+    max_function_evaluations: int = 10000
+    convergence_tolerance: float = 1e-6
+    time_limit_seconds: Optional[float] = None
+    
+    # Random seed management
+    base_random_seed: int = 42
+    seed_increment: int = 1
+    
+    # Statistical parameters
+    confidence_level: float = 0.95
+    significance_level: float = 0.05
+    effect_size_threshold: float = 0.5
+    
+    # Cross-validation
+    cv_folds: int = 5
+    bootstrap_samples: int = 1000
+    
+    # Environment control
+    force_deterministic: bool = True
+    cpu_affinity: Optional[List[int]] = None
+    memory_limit_gb: Optional[float] = None
+    
+    # Output control
+    save_convergence_history: bool = True
+    save_intermediate_results: bool = False
+    generate_plots: bool = True
+    
+    def generate_random_seeds(self) -> List[int]:
+        """Generate random seeds for independent runs."""
+        return [self.base_random_seed + i * self.seed_increment 
+                for i in range(self.num_independent_runs)]
+    
+    def validate(self) -> List[str]:
+        """Validate experimental protocol parameters."""
+        issues = []
+        
+        if self.num_independent_runs < 10:
+            issues.append("Number of runs should be at least 10 for statistical validity")
+        
+        if self.confidence_level <= 0 or self.confidence_level >= 1:
+            issues.append("Confidence level must be between 0 and 1")
+        
+        if self.significance_level <= 0 or self.significance_level >= 1:
+            issues.append("Significance level must be between 0 and 1")
+            
+        return issues
+
+
+@dataclass
 class MultiObjectiveMetrics:
     """Multi-objective optimization metrics."""
     
@@ -153,6 +284,36 @@ class BenchmarkResult:
     random_seed: int = 42
     success: bool = True
     error_message: Optional[str] = None
+    timestamp: datetime = field(default_factory=datetime.now)
+    environment_info: Dict[str, str] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert result to dictionary for serialization."""
+        result_dict = {
+            'algorithm_name': self.algorithm_name,
+            'problem_instance': self.problem_instance,
+            'run_id': self.run_id,
+            'best_objective': self.best_objective,
+            'final_objective': self.final_objective,
+            'convergence_history': self.convergence_history,
+            'function_evaluations': self.function_evaluations,
+            'computation_time': self.computation_time,
+            'memory_peak_mb': self.memory_peak_mb,
+            'cpu_utilization': self.cpu_utilization,
+            'success': self.success,
+            'timestamp': self.timestamp.isoformat(),
+            'random_seed': self.random_seed
+        }
+        
+        # Add optional metrics
+        if self.multiobjective_metrics:
+            result_dict['multiobjective_metrics'] = self.multiobjective_metrics.__dict__
+        if self.convergence_analysis:
+            result_dict['convergence_analysis'] = self.convergence_analysis.__dict__
+        if self.robustness_metrics:
+            result_dict['robustness_metrics'] = self.robustness_metrics.__dict__
+            
+        return result_dict
 
 
 @dataclass
