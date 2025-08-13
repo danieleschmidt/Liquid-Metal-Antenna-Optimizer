@@ -5,8 +5,51 @@ Base solver interface and result classes.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, Tuple, Union
-import numpy as np
-import torch
+
+# Import dependencies with fallbacks
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    # Simple numpy substitute
+    class SimpleNumPy:
+        @staticmethod
+        def array(data):
+            return data
+        @staticmethod
+        def argmin(data):
+            return min(range(len(data)), key=lambda i: data[i])
+        @staticmethod
+        def abs(data):
+            return [abs(x) for x in data] if hasattr(data, '__iter__') else abs(data)
+        @staticmethod
+        def max(data):
+            return max(data) if hasattr(data, '__iter__') else data
+        @staticmethod
+        def min(data):
+            return min(data) if hasattr(data, '__iter__') else data
+        @staticmethod
+        def mean(data):
+            return sum(data) / len(data) if hasattr(data, '__iter__') else data
+        @staticmethod
+        def real(data):
+            return data
+        @staticmethod
+        def log10(data):
+            import math
+            return math.log10(data) if data > 0 else -50.0
+        @staticmethod
+        def clip(data, min_val, max_val):
+            return data
+    np = SimpleNumPy()
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
 
 
 @dataclass
@@ -14,17 +57,17 @@ class SolverResult:
     """Result container for electromagnetic simulation."""
     
     # S-parameters
-    s_parameters: np.ndarray  # Complex S-parameters [freq, port, port]
-    frequencies: np.ndarray   # Frequency points in Hz
+    s_parameters: Any  # Complex S-parameters [freq, port, port]
+    frequencies: Any   # Frequency points in Hz
     
     # Field data (optional)
-    electric_field: Optional[np.ndarray] = None  # E-field [x, y, z, component]
-    magnetic_field: Optional[np.ndarray] = None  # H-field [x, y, z, component]
+    electric_field: Optional[Any] = None  # E-field [x, y, z, component]
+    magnetic_field: Optional[Any] = None  # H-field [x, y, z, component]
     
     # Radiation patterns (optional)
-    radiation_pattern: Optional[np.ndarray] = None  # [theta, phi]
-    theta_angles: Optional[np.ndarray] = None
-    phi_angles: Optional[np.ndarray] = None
+    radiation_pattern: Optional[Any] = None  # [theta, phi]
+    theta_angles: Optional[Any] = None
+    phi_angles: Optional[Any] = None
     
     # Computed metrics
     gain_dbi: Optional[float] = None
@@ -32,7 +75,7 @@ class SolverResult:
     directivity_dbi: Optional[float] = None
     efficiency: Optional[float] = None
     bandwidth_hz: Optional[float] = None
-    vswr: Optional[np.ndarray] = None  # VSWR vs frequency
+    vswr: Optional[Any] = None  # VSWR vs frequency
     
     # Convergence information
     converged: bool = False
@@ -99,17 +142,17 @@ class BaseSolver(ABC):
     def _setup_device(self) -> None:
         """Setup computation device."""
         if 'cuda' in self.device:
-            if not torch.cuda.is_available():
+            if not TORCH_AVAILABLE or not torch.cuda.is_available():
                 print(f"Warning: CUDA not available, falling back to CPU")
                 self.device = 'cpu'
-            else:
+            elif TORCH_AVAILABLE:
                 torch.cuda.set_device(self.device)
     
     @abstractmethod
     def simulate(
         self,
-        geometry: Union[np.ndarray, torch.Tensor],
-        frequency: Union[float, np.ndarray],
+        geometry: Any,
+        frequency: Union[float, Any],
         **kwargs
     ) -> SolverResult:
         """
@@ -128,18 +171,18 @@ class BaseSolver(ABC):
     @abstractmethod
     def compute_s_parameters(
         self,
-        fields: Union[np.ndarray, torch.Tensor],
-        frequency: Union[float, np.ndarray]
-    ) -> np.ndarray:
+        fields: Any,
+        frequency: Union[float, Any]
+    ) -> Any:
         """Compute S-parameters from field data."""
         pass
     
     @abstractmethod
     def compute_radiation_pattern(
         self,
-        fields: Union[np.ndarray, torch.Tensor],
+        fields: Any,
         frequency: float
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[Any, Any, Any]:
         """
         Compute radiation pattern from field data.
         
@@ -150,9 +193,15 @@ class BaseSolver(ABC):
         """
         pass
     
-    def compute_gain(self, pattern: np.ndarray) -> float:
+    def compute_gain(self, pattern: Any) -> float:
         """Compute maximum gain from radiation pattern."""
-        if pattern is None or pattern.size == 0:
+        if pattern is None:
+            return 0.0
+        
+        # Handle different pattern types
+        if hasattr(pattern, 'size') and pattern.size == 0:
+            return 0.0
+        elif hasattr(pattern, '__len__') and len(pattern) == 0:
             return 0.0
         
         # Convert power pattern to gain in dBi
@@ -180,7 +229,7 @@ class BaseSolver(ABC):
             return 0.0
         return min(radiated_power / input_power, 1.0)
     
-    def compute_vswr(self, s11: np.ndarray) -> np.ndarray:
+    def compute_vswr(self, s11: Any) -> Any:
         """Compute VSWR from S11."""
         s11_mag = np.abs(s11)
         s11_mag = np.clip(s11_mag, 0, 0.999)  # Avoid division by zero

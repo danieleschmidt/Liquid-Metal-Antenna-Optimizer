@@ -5,7 +5,18 @@ Antenna specification and configuration classes.
 from typing import Tuple, Optional, Dict, Any, Union
 from dataclasses import dataclass
 from enum import Enum
-import numpy as np
+# Import numpy with fallback
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    # Simple numpy substitute for basic operations
+    class SimpleNumPy:
+        @staticmethod
+        def sqrt(x):
+            return x ** 0.5
+    np = SimpleNumPy()
 
 
 class SubstrateMaterial(Enum):

@@ -470,7 +470,15 @@ def create_optimizer(
         return SimpleLMAOptimizer(spec, solver, device)
 
 
-# The actual LMAOptimizer class will be defined below for torch-enabled systems
+# Make LMAOptimizer available regardless of torch availability
 if not TORCH_AVAILABLE:
     # Use the simple optimizer as the default when torch is not available
     LMAOptimizer = SimpleLMAOptimizer
+    
+    # Create a factory that always returns the simple optimizer
+    def create_optimizer(
+        spec: AntennaSpec,
+        solver: Union[str, BaseSolver] = 'differentiable_fdtd',
+        device: str = 'cpu'
+    ) -> SimpleLMAOptimizer:
+        return SimpleLMAOptimizer(spec, solver, device)
