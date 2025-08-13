@@ -12,6 +12,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 
+# Import validation utilities
+try:
+    from .validation import validate_geometry, validate_frequency_range, ValidationError
+    VALIDATION_AVAILABLE = True
+except ImportError:
+    VALIDATION_AVAILABLE = False
+    class ValidationError(Exception):
+        pass
+
 
 class SecurityError(Exception):
     """Security-related error."""
@@ -764,3 +773,101 @@ _security_audit = SecurityAudit()
 def get_security_audit() -> SecurityAudit:
     """Get global security audit instance."""
     return _security_audit
+
+
+class SecurityValidator:
+    """Simple security validator for Generation 2 compatibility."""
+    
+    def __init__(self):
+        """Initialize security validator."""
+        self.validation_count = 0
+        self.failed_validations = 0
+    
+    def validate_geometry(self, geometry: Any) -> Dict[str, Any]:
+        """
+        Validate antenna geometry for security issues.
+        
+        Args:
+            geometry: Antenna geometry to validate
+            
+        Returns:
+            Validation result dictionary
+        """
+        self.validation_count += 1
+        warnings = []
+        
+        try:
+            # Basic size validation
+            if hasattr(geometry, 'size'):
+                if geometry.size > 1000000:  # 1M elements max
+                    warnings.append("Geometry size exceeds recommended limits")
+                if geometry.size < 10:
+                    warnings.append("Geometry size too small for realistic antenna")
+            elif hasattr(geometry, '__len__'):
+                # List-based geometry
+                def count_elements(item):
+                    if hasattr(item, '__len__') and not isinstance(item, str):
+                        return sum(count_elements(sub) for sub in item)
+                    return 1
+                
+                total_elements = count_elements(geometry)
+                if total_elements > 1000000:
+                    warnings.append("Geometry size exceeds recommended limits")
+                if total_elements < 10:
+                    warnings.append("Geometry size too small for realistic antenna")
+            
+            # Value range validation
+            if VALIDATION_AVAILABLE:
+                try:
+                    validate_geometry(geometry)
+                except ValidationError as e:
+                    warnings.append(f"Geometry validation failed: {e}")
+            
+            valid = len(warnings) == 0
+            if not valid:
+                self.failed_validations += 1
+            
+            return {
+                'valid': valid,
+                'warnings': warnings,
+                'validation_count': self.validation_count,
+                'failure_rate': self.failed_validations / max(self.validation_count, 1)
+            }
+            
+        except Exception as e:
+            self.failed_validations += 1
+            return {
+                'valid': False,
+                'warnings': [f"Validation error: {e}"],
+                'validation_count': self.validation_count,
+                'failure_rate': self.failed_validations / max(self.validation_count, 1)
+            }
+    
+    def validate_frequency(self, frequency: float) -> Dict[str, Any]:
+        """Validate frequency parameter."""
+        warnings = []
+        
+        if not isinstance(frequency, (int, float)):
+            warnings.append("Frequency must be numeric")
+        elif frequency <= 0:
+            warnings.append("Frequency must be positive")
+        elif frequency > 100e9:  # 100 GHz
+            warnings.append("Frequency exceeds typical antenna design range")
+        elif frequency < 1e6:  # 1 MHz
+            warnings.append("Frequency below typical antenna design range")
+        
+        return {
+            'valid': len(warnings) == 0,
+            'warnings': warnings
+        }
+    
+    def get_security_status(self) -> Dict[str, Any]:
+        """Get security validation status."""
+        success_rate = 1.0 - (self.failed_validations / max(self.validation_count, 1))
+        
+        return {
+            'validation_count': self.validation_count,
+            'failed_validations': self.failed_validations,
+            'success_rate': success_rate * 100,
+            'security_score': success_rate * 100
+        }
