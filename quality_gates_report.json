@@ -1,38 +1,38 @@
 {
-  "timestamp": "2025-08-13 18:38:05",
+  "timestamp": "2025-08-15 02:42:42",
   "quality_gates_version": "1.0",
   "terragon_sdlc_generation": "2-3",
   "results": {
     "Import Quality Gate": {
       "passed": true,
-      "duration": 0.07250785827636719,
+      "duration": 0.16775178909301758,
       "error_message": "",
       "details": {
         "core": true,
-        "error_handling": false,
+        "error_handling": true,
         "logging": true,
         "security": true
       }
     },
     "Basic Functionality Gate": {
       "passed": true,
-      "duration": 0.05575227737426758,
+      "duration": 0.06892204284667969,
       "error_message": "",
       "details": {
         "gain_dbi": 2.536875,
         "vswr": 3.484375,
         "efficiency": 0.60234375,
-        "optimization_time": 0.05130267143249512,
+        "optimization_time": 0.03856539726257324,
         "iterations": 3
       }
     },
     "Performance Gate": {
       "passed": true,
-      "duration": 0.1581885814666748,
+      "duration": 0.0679774284362793,
       "error_message": "",
       "details": {
-        "total_time": 0.157334566116333,
-        "time_per_iteration": 0.0157334566116333,
+        "total_time": 0.06688308715820312,
+        "time_per_iteration": 0.006688308715820312,
         "iterations": 10,
         "max_time_limit": 10.0,
         "max_time_per_iteration": 0.5,
@@ -41,10 +41,10 @@
     },
     "Robustness Gate": {
       "passed": true,
-      "duration": 0.005904674530029297,
+      "duration": 0.018402099609375,
       "error_message": "",
       "details": {
-        "error_handling": false,
+        "error_handling": true,
         "logging": true,
         "security": true,
         "invalid_input_handling": true
@@ -52,7 +52,7 @@
     },
     "Security Gate": {
       "passed": true,
-      "duration": 0.1322174072265625,
+      "duration": 0.12122726440429688,
       "error_message": "",
       "details": {
         "input_validation": true,
@@ -62,11 +62,11 @@
     },
     "Code Quality Gate": {
       "passed": true,
-      "duration": 0.00152587890625,
+      "duration": 0.00031375885009765625,
       "error_message": "",
       "details": {
         "import_structure": true,
-        "error_handling": false,
+        "error_handling": true,
         "documentation": true,
         "modularity": true
       }
@@ -76,6 +76,6 @@
     "passed_gates": 6,
     "total_gates": 6,
     "success_rate": 100.0,
-    "total_time": 0.42640185356140137
+    "total_time": 0.44481658935546875
   }
 }

@@ -1,36 +1,40 @@
 {
-  "timestamp": "2025-08-07 06:31:17",
+  "timestamp": "2025-08-15 02:42:43",
   "project_structure": {
     "directories_found": 10,
     "directories_required": 11,
     "structure_percentage": 90.9090909090909,
-    "python_files_count": 46,
+    "python_files_count": 71,
     "found_directories": [
-      "examples",
-      "liquid_metal_antenna/research",
-      "liquid_metal_antenna",
-      "liquid_metal_antenna/core",
-      "liquid_metal_antenna/optimization",
-      "liquid_metal_antenna/liquid_metal",
       "liquid_metal_antenna/solvers",
-      "tests",
+      "liquid_metal_antenna/core",
       "liquid_metal_antenna/utils",
+      "liquid_metal_antenna/optimization",
+      "liquid_metal_antenna/research",
+      "examples",
+      "liquid_metal_antenna",
+      "liquid_metal_antenna/liquid_metal",
+      "tests",
       "liquid_metal_antenna/designs"
     ]
   },
   "code_quality": {
-    "total_files": 46,
-    "files_with_docstrings": 39,
-    "files_with_type_hints": 37,
-    "files_with_error_handling": 32,
-    "total_lines": 20903,
-    "total_functions": 840,
-    "total_classes": 135,
-    "import_errors": [],
-    "docstring_percentage": 84.78260869565217,
-    "type_hint_percentage": 80.43478260869566,
-    "error_handling_percentage": 69.56521739130434,
-    "quality_score": 78.26086956521739
+    "total_files": 71,
+    "files_with_docstrings": 61,
+    "files_with_type_hints": 61,
+    "files_with_error_handling": 57,
+    "total_lines": 42587,
+    "total_functions": 1454,
+    "total_classes": 228,
+    "import_errors": [
+      "production_deployment_package.py: unexpected character after line continuation character (<unknown>, line 365)",
+      "liquid_metal_antenna/research/benchmarks.py: unexpected character after line continuation character (<unknown>, line 1570)",
+      "liquid_metal_antenna/research/comparative_benchmarking.py: unexpected character after line continuation character (<unknown>, line 802)"
+    ],
+    "docstring_percentage": 85.91549295774648,
+    "type_hint_percentage": 85.91549295774648,
+    "error_handling_percentage": 80.28169014084507,
+    "quality_score": 84.03755868544602
   },
   "functionality_coverage": {
     "categories": {
@@ -133,5 +137,5 @@
     "contributions_implemented": 8,
     "contributions_total": 12
   },
-  "overall_score": 89.28853754940711
+  "overall_score": 90.44387537345284
 }
