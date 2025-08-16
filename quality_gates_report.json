@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-08-15 02:42:42",
+  "timestamp": "2025-08-16 19:10:51",
   "quality_gates_version": "1.0",
   "terragon_sdlc_generation": "2-3",
   "results": {
     "Import Quality Gate": {
       "passed": true,
-      "duration": 0.16775178909301758,
+      "duration": 0.16813158988952637,
       "error_message": "",
       "details": {
         "core": true,
@@ -16,23 +16,23 @@
     },
     "Basic Functionality Gate": {
       "passed": true,
-      "duration": 0.06892204284667969,
+      "duration": 0.06570315361022949,
       "error_message": "",
       "details": {
         "gain_dbi": 2.536875,
         "vswr": 3.484375,
         "efficiency": 0.60234375,
-        "optimization_time": 0.03856539726257324,
+        "optimization_time": 0.048675537109375,
         "iterations": 3
       }
     },
     "Performance Gate": {
       "passed": true,
-      "duration": 0.0679774284362793,
+      "duration": 0.09198927879333496,
       "error_message": "",
       "details": {
-        "total_time": 0.06688308715820312,
-        "time_per_iteration": 0.006688308715820312,
+        "total_time": 0.09084272384643555,
+        "time_per_iteration": 0.009084272384643554,
         "iterations": 10,
         "max_time_limit": 10.0,
         "max_time_per_iteration": 0.5,
@@ -41,7 +41,7 @@
     },
     "Robustness Gate": {
       "passed": true,
-      "duration": 0.018402099609375,
+      "duration": 0.02412104606628418,
       "error_message": "",
       "details": {
         "error_handling": true,
@@ -52,7 +52,7 @@
     },
     "Security Gate": {
       "passed": true,
-      "duration": 0.12122726440429688,
+      "duration": 0.1489856243133545,
       "error_message": "",
       "details": {
         "input_validation": true,
@@ -62,7 +62,7 @@
     },
     "Code Quality Gate": {
       "passed": true,
-      "duration": 0.00031375885009765625,
+      "duration": 0.0003662109375,
       "error_message": "",
       "details": {
         "import_structure": true,
@@ -76,6 +76,6 @@
     "passed_gates": 6,
     "total_gates": 6,
     "success_rate": 100.0,
-    "total_time": 0.44481658935546875
+    "total_time": 0.4996297359466553
   }
 }
