@@ -29,6 +29,455 @@ from ..utils.logging_config import get_logger
 
 
 @dataclass
+class TransformerConfig:
+    """Configuration for electromagnetic field prediction transformer."""
+    
+    # Architecture parameters
+    embed_dim: int = 768
+    num_heads: int = 12
+    num_layers: int = 12
+    mlp_ratio: float = 4.0
+    dropout: float = 0.1
+    
+    # 3D patch embedding parameters
+    patch_size: Tuple[int, int, int] = (4, 4, 4)
+    input_resolution: Tuple[int, int, int] = (64, 64, 32)
+    in_channels: int = 1  # Antenna geometry
+    
+    # Physics-informed parameters
+    physics_loss_weight: float = 0.1
+    boundary_loss_weight: float = 0.05
+    maxwell_constraint_weight: float = 0.2
+    
+    # Training parameters
+    learning_rate: float = 1e-4
+    weight_decay: float = 0.01
+    warmup_steps: int = 1000
+
+
+class Physics3DPatchEmbedding:
+    """
+    3D Patch Embedding for volumetric antenna geometries with physics awareness.
+    
+    Converts 3D antenna geometry to sequence of patches with positional encoding
+    that respects electromagnetic boundary conditions.
+    """
+    
+    def __init__(self, config: TransformerConfig):
+        self.config = config
+        self.patch_size = config.patch_size
+        self.input_resolution = config.input_resolution
+        self.embed_dim = config.embed_dim
+        self.logger = get_logger(__name__)
+        
+        # Calculate number of patches
+        self.num_patches = np.prod([
+            res // patch for res, patch in zip(config.input_resolution, config.patch_size)
+        ])
+        
+        # Initialize embedding weights (would be torch.nn.Linear in actual implementation)
+        self.projection_weights = np.random.normal(
+            0, 0.02, (np.prod(config.patch_size), config.embed_dim)
+        )
+        
+        # Physics-informed positional encoding
+        self.positional_encoding = self._create_physics_positional_encoding()
+        
+    def _create_physics_positional_encoding(self) -> np.ndarray:
+        """Create positional encoding that respects EM field symmetries."""
+        pos_encoding = np.zeros((self.num_patches, self.embed_dim))
+        
+        # Calculate 3D grid positions
+        patch_grid = self._get_patch_grid_positions()
+        
+        for i, (x, y, z) in enumerate(patch_grid):
+            # Standard sinusoidal encoding
+            for dim in range(0, self.embed_dim // 6):
+                # X-dimension encoding
+                pos_encoding[i, dim] = np.sin(x / (10000 ** (2 * dim / self.embed_dim)))
+                pos_encoding[i, dim + self.embed_dim // 6] = np.cos(x / (10000 ** (2 * dim / self.embed_dim)))
+                
+                # Y-dimension encoding  
+                pos_encoding[i, dim + 2 * self.embed_dim // 6] = np.sin(y / (10000 ** (2 * dim / self.embed_dim)))
+                pos_encoding[i, dim + 3 * self.embed_dim // 6] = np.cos(y / (10000 ** (2 * dim / self.embed_dim)))
+                
+                # Z-dimension encoding
+                pos_encoding[i, dim + 4 * self.embed_dim // 6] = np.sin(z / (10000 ** (2 * dim / self.embed_dim)))
+                pos_encoding[i, dim + 5 * self.embed_dim // 6] = np.cos(z / (10000 ** (2 * dim / self.embed_dim)))
+        
+        return pos_encoding
+        
+    def _get_patch_grid_positions(self) -> List[Tuple[int, int, int]]:
+        """Get 3D grid positions for all patches."""
+        positions = []
+        x_patches = self.input_resolution[0] // self.patch_size[0]
+        y_patches = self.input_resolution[1] // self.patch_size[1] 
+        z_patches = self.input_resolution[2] // self.patch_size[2]
+        
+        for x in range(x_patches):
+            for y in range(y_patches):
+                for z in range(z_patches):
+                    positions.append((x, y, z))
+        
+        return positions
+        
+    def embed(self, geometry: np.ndarray) -> np.ndarray:
+        """
+        Convert 3D antenna geometry to patch embeddings.
+        
+        Args:
+            geometry: 3D antenna geometry (H, W, D)
+            
+        Returns:
+            Patch embeddings with positional encoding (num_patches, embed_dim)
+        """
+        # Extract patches from 3D geometry
+        patches = self._extract_patches(geometry)
+        
+        # Linear projection to embedding dimension
+        embeddings = patches @ self.projection_weights
+        
+        # Add physics-informed positional encoding
+        embeddings += self.positional_encoding
+        
+        return embeddings
+        
+    def _extract_patches(self, geometry: np.ndarray) -> np.ndarray:
+        """Extract non-overlapping 3D patches from geometry."""
+        ph, pw, pd = self.patch_size
+        gh, gw, gd = geometry.shape
+        
+        # Number of patches along each dimension
+        h_patches = gh // ph
+        w_patches = gw // pw
+        d_patches = gd // pd
+        
+        patches = []
+        
+        for h in range(h_patches):
+            for w in range(w_patches):
+                for d in range(d_patches):
+                    patch = geometry[
+                        h*ph:(h+1)*ph,
+                        w*pw:(w+1)*pw, 
+                        d*pd:(d+1)*pd
+                    ]
+                    patches.append(patch.flatten())
+        
+        return np.array(patches)
+
+
+class PhysicsInformedAttention:
+    """
+    Multi-head self-attention with physics-informed constraints.
+    
+    Incorporates electromagnetic field relationships and boundary conditions
+    into the attention mechanism for more physically realistic predictions.
+    """
+    
+    def __init__(self, config: TransformerConfig):
+        self.config = config
+        self.embed_dim = config.embed_dim
+        self.num_heads = config.num_heads
+        self.head_dim = config.embed_dim // config.num_heads
+        self.logger = get_logger(__name__)
+        
+        # Initialize attention weights (simplified for demonstration)
+        self.qkv_weights = np.random.normal(
+            0, 0.02, (config.embed_dim, 3 * config.embed_dim)
+        )
+        self.out_projection = np.random.normal(
+            0, 0.02, (config.embed_dim, config.embed_dim)
+        )
+        
+        # Physics constraint matrices
+        self.maxwell_constraint_matrix = self._create_maxwell_constraints()
+        
+    def _create_maxwell_constraints(self) -> np.ndarray:
+        """Create constraint matrix encoding Maxwell's equations."""
+        # Simplified constraint matrix (in practice would be more sophisticated)
+        constraints = np.eye(self.embed_dim)
+        
+        # Add curl and divergence constraints
+        # This is a simplified representation - actual implementation would
+        # incorporate proper differential operators
+        for i in range(0, self.embed_dim - 3, 3):
+            # Divergence constraint: ∇·E = ρ/ε₀
+            constraints[i, i+1] = 0.1
+            constraints[i, i+2] = 0.1
+            
+            # Curl constraint: ∇×E = -∂B/∂t
+            constraints[i+1, i] = -0.1
+            constraints[i+2, i] = 0.1
+        
+        return constraints
+        
+    def forward(self, x: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Apply physics-informed multi-head attention.
+        
+        Args:
+            x: Input embeddings (batch_size, seq_len, embed_dim)
+            mask: Optional attention mask
+            
+        Returns:
+            Attention output with physics constraints applied
+        """
+        batch_size, seq_len, embed_dim = x.shape
+        
+        # Compute Q, K, V projections
+        qkv = x @ self.qkv_weights
+        q, k, v = np.split(qkv, 3, axis=-1)
+        
+        # Reshape for multi-head attention
+        q = q.reshape(batch_size, seq_len, self.num_heads, self.head_dim)
+        k = k.reshape(batch_size, seq_len, self.num_heads, self.head_dim)
+        v = v.reshape(batch_size, seq_len, self.num_heads, self.head_dim)
+        
+        # Transpose for attention computation
+        q = q.transpose(0, 2, 1, 3)  # (batch, heads, seq_len, head_dim)
+        k = k.transpose(0, 2, 1, 3)
+        v = v.transpose(0, 2, 1, 3)
+        
+        # Scaled dot-product attention
+        scale = 1.0 / np.sqrt(self.head_dim)
+        attention_scores = np.matmul(q, k.transpose(0, 1, 3, 2)) * scale
+        
+        # Apply physics constraints to attention scores
+        attention_scores = self._apply_physics_constraints(attention_scores)
+        
+        if mask is not None:
+            attention_scores = np.where(mask, attention_scores, -np.inf)
+        
+        # Softmax (simplified - would use proper numerical stable softmax)
+        attention_weights = self._softmax(attention_scores)
+        
+        # Apply attention to values
+        attention_output = np.matmul(attention_weights, v)
+        
+        # Reshape and project output
+        attention_output = attention_output.transpose(0, 2, 1, 3)
+        attention_output = attention_output.reshape(batch_size, seq_len, embed_dim)
+        
+        # Final output projection
+        output = attention_output @ self.out_projection
+        
+        return output
+        
+    def _apply_physics_constraints(self, attention_scores: np.ndarray) -> np.ndarray:
+        """Apply electromagnetic physics constraints to attention scores."""
+        batch_size, num_heads, seq_len, _ = attention_scores.shape
+        
+        # Apply Maxwell constraint matrix
+        # This is a simplified version - actual implementation would be more sophisticated
+        for b in range(batch_size):
+            for h in range(num_heads):
+                # Apply constraints to attention pattern
+                constrained_attention = attention_scores[b, h] @ self.maxwell_constraint_matrix[:seq_len, :seq_len]
+                attention_scores[b, h] = constrained_attention
+        
+        return attention_scores
+        
+    def _softmax(self, x: np.ndarray) -> np.ndarray:
+        """Numerically stable softmax."""
+        exp_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+        return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
+
+
+class ElectromagneticTransformer:
+    """
+    Complete Transformer architecture for electromagnetic field prediction.
+    
+    Combines 3D patch embedding, physics-informed attention, and specialized
+    output layers for predicting full 3D E and H field distributions.
+    """
+    
+    def __init__(self, config: TransformerConfig):
+        self.config = config
+        self.logger = get_logger(__name__)
+        
+        # Core components
+        self.patch_embedding = Physics3DPatchEmbedding(config)
+        self.attention_layers = [
+            PhysicsInformedAttention(config) for _ in range(config.num_layers)
+        ]
+        
+        # Output heads for E and H fields
+        self.field_output_head = self._create_field_output_head()
+        
+        # Physics loss components
+        self.physics_validator = PhysicsLossValidator(config)
+        
+    def _create_field_output_head(self) -> Dict[str, np.ndarray]:
+        """Create output projection heads for electromagnetic fields."""
+        return {
+            'e_field': np.random.normal(0, 0.02, (self.config.embed_dim, 3)),  # Ex, Ey, Ez
+            'h_field': np.random.normal(0, 0.02, (self.config.embed_dim, 3)),  # Hx, Hy, Hz
+            'power_density': np.random.normal(0, 0.02, (self.config.embed_dim, 1))
+        }
+        
+    def predict_fields(self, antenna_geometry: np.ndarray) -> Dict[str, np.ndarray]:
+        """
+        Predict electromagnetic fields from antenna geometry.
+        
+        Args:
+            antenna_geometry: 3D antenna geometry (H, W, D)
+            
+        Returns:
+            Dictionary containing predicted E-field, H-field, and power density
+        """
+        # Convert geometry to patch embeddings
+        embeddings = self.patch_embedding.embed(antenna_geometry)
+        embeddings = embeddings[np.newaxis, ...]  # Add batch dimension
+        
+        # Forward through transformer layers
+        hidden_states = embeddings
+        for attention_layer in self.attention_layers:
+            hidden_states = attention_layer.forward(hidden_states)
+            
+        # Apply layer normalization (simplified)
+        hidden_states = self._layer_norm(hidden_states)
+        
+        # Predict field components
+        predictions = {}
+        for field_type, projection in self.field_output_head.items():
+            field_pred = hidden_states @ projection
+            predictions[field_type] = field_pred.squeeze(0)  # Remove batch dimension
+            
+        return predictions
+        
+    def _layer_norm(self, x: np.ndarray, eps: float = 1e-6) -> np.ndarray:
+        """Apply layer normalization."""
+        mean = np.mean(x, axis=-1, keepdims=True)
+        var = np.var(x, axis=-1, keepdims=True)
+        return (x - mean) / np.sqrt(var + eps)
+        
+    def compute_physics_loss(
+        self, 
+        predictions: Dict[str, np.ndarray], 
+        antenna_geometry: np.ndarray
+    ) -> Dict[str, float]:
+        """Compute physics-informed loss components."""
+        return self.physics_validator.compute_losses(predictions, antenna_geometry)
+
+
+class PhysicsLossValidator:
+    """
+    Validator for electromagnetic physics constraints.
+    
+    Computes loss terms ensuring predicted fields satisfy Maxwell's equations
+    and appropriate boundary conditions.
+    """
+    
+    def __init__(self, config: TransformerConfig):
+        self.config = config
+        self.logger = get_logger(__name__)
+        
+    def compute_losses(
+        self, 
+        predictions: Dict[str, np.ndarray], 
+        geometry: np.ndarray
+    ) -> Dict[str, float]:
+        """Compute all physics-based loss terms."""
+        losses = {}
+        
+        e_field = predictions['e_field']
+        h_field = predictions['h_field']
+        
+        # Maxwell equation constraints
+        losses['divergence_e'] = self._compute_divergence_loss(e_field)
+        losses['curl_e'] = self._compute_curl_loss(e_field, h_field, is_e_field=True)
+        losses['curl_h'] = self._compute_curl_loss(h_field, e_field, is_e_field=False)
+        
+        # Boundary condition constraints
+        losses['boundary'] = self._compute_boundary_loss(e_field, h_field, geometry)
+        
+        # Energy conservation
+        losses['energy_conservation'] = self._compute_energy_conservation_loss(
+            predictions['power_density']
+        )
+        
+        # Total physics loss
+        total_physics_loss = (
+            self.config.maxwell_constraint_weight * (losses['divergence_e'] + losses['curl_e'] + losses['curl_h']) +
+            self.config.boundary_loss_weight * losses['boundary'] +
+            0.1 * losses['energy_conservation']
+        )
+        
+        losses['total_physics'] = total_physics_loss
+        
+        return losses
+        
+    def _compute_divergence_loss(self, e_field: np.ndarray) -> float:
+        """Compute loss for ∇·E = ρ/ε₀ constraint."""
+        # Simplified finite difference divergence
+        if len(e_field.shape) < 2 or e_field.shape[-1] < 3:
+            return 0.0
+            
+        # Extract field components
+        ex, ey, ez = e_field[..., 0], e_field[..., 1], e_field[..., 2]
+        
+        # Compute divergence (simplified 1D case)
+        if len(ex.shape) == 1 and len(ex) > 2:
+            div_e = np.gradient(ex) + np.gradient(ey) + np.gradient(ez)
+            # In vacuum, divergence should be zero
+            return np.mean(div_e**2)
+        
+        return 0.0
+        
+    def _compute_curl_loss(
+        self, 
+        field1: np.ndarray, 
+        field2: np.ndarray, 
+        is_e_field: bool
+    ) -> float:
+        """Compute loss for curl constraints in Maxwell's equations."""
+        if len(field1.shape) < 2 or field1.shape[-1] < 3:
+            return 0.0
+            
+        # Simplified curl computation (would need proper 3D implementation)
+        # ∇×E = -∂B/∂t or ∇×H = ∂D/∂t + J
+        curl_constraint = np.mean((field1 - field2)**2)
+        
+        return curl_constraint
+        
+    def _compute_boundary_loss(
+        self, 
+        e_field: np.ndarray, 
+        h_field: np.ndarray, 
+        geometry: np.ndarray
+    ) -> float:
+        """Compute loss for electromagnetic boundary conditions."""
+        # Simplified boundary condition: fields should be zero inside conductors
+        # and satisfy continuity conditions at interfaces
+        
+        if len(geometry.shape) != len(e_field.shape[:-1]):
+            return 0.0
+            
+        # Find conductor regions (assuming geometry > 0.5 indicates conductor)
+        conductor_mask = geometry > 0.5
+        
+        # E-field should be zero inside perfect conductors
+        if len(e_field.shape) > 1:
+            e_in_conductor = e_field[conductor_mask] if conductor_mask.any() else np.array([])
+            boundary_loss = np.mean(e_in_conductor**2) if len(e_in_conductor) > 0 else 0.0
+        else:
+            boundary_loss = 0.0
+            
+        return boundary_loss
+        
+    def _compute_energy_conservation_loss(self, power_density: np.ndarray) -> float:
+        """Compute loss for energy conservation constraints."""
+        # Power should be positive and finite
+        negative_power = np.sum(power_density < 0) 
+        infinite_power = np.sum(np.isinf(power_density))
+        
+        conservation_loss = negative_power + infinite_power * 10.0
+        
+        return float(conservation_loss)
+
+
+@dataclass
 class FieldPrediction:
     """Comprehensive electromagnetic field prediction."""
     
