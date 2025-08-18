@@ -543,3 +543,138 @@ def validate_device_string(device: str) -> None:
             context={'original_error': str(e)},
             suggestions=["Check device string format"]
         )
+
+
+def comprehensive_system_validation() -> Dict[str, Any]:
+    """
+    Comprehensive system validation for Generation 2 robustness.
+    
+    Returns:
+        Dict containing validation results for different system components
+    """
+    results = {}
+    
+    # Core imports validation
+    try:
+        import liquid_metal_antenna
+        from liquid_metal_antenna import AntennaSpec, LMAOptimizer
+        results['core_imports'] = {
+            'status': 'PASSED',
+            'message': 'Core imports successful'
+        }
+    except Exception as e:
+        results['core_imports'] = {
+            'status': 'FAILED',
+            'message': f'Core import error: {str(e)}'
+        }
+    
+    # Dependencies validation
+    try:
+        import numpy as np
+        import scipy
+        numpy_version = np.__version__
+        scipy_version = scipy.__version__
+        
+        results['dependencies'] = {
+            'status': 'PASSED',
+            'message': f'NumPy {numpy_version}, SciPy {scipy_version}',
+            'numpy_version': numpy_version,
+            'scipy_version': scipy_version
+        }
+    except Exception as e:
+        results['dependencies'] = {
+            'status': 'FAILED',
+            'message': f'Dependency error: {str(e)}'
+        }
+    
+    # Memory validation
+    try:
+        import psutil
+        memory = psutil.virtual_memory()
+        memory_gb = memory.total / 1e9
+        memory_available_gb = memory.available / 1e9
+        
+        results['memory'] = {
+            'status': 'PASSED' if memory_available_gb > 1.0 else 'WARNING',
+            'message': f'{memory_available_gb:.1f}GB available of {memory_gb:.1f}GB total',
+            'total_gb': memory_gb,
+            'available_gb': memory_available_gb
+        }
+    except ImportError:
+        results['memory'] = {
+            'status': 'WARNING',
+            'message': 'psutil not available for memory check'
+        }
+    except Exception as e:
+        results['memory'] = {
+            'status': 'FAILED',
+            'message': f'Memory check error: {str(e)}'
+        }
+    
+    # GPU validation
+    try:
+        import torch
+        if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else 'Unknown'
+            results['gpu'] = {
+                'status': 'AVAILABLE',
+                'message': f'{gpu_count} GPU(s) available: {gpu_name}',
+                'count': gpu_count,
+                'name': gpu_name
+            }
+        else:
+            results['gpu'] = {
+                'status': 'UNAVAILABLE',
+                'message': 'CUDA not available, using CPU',
+                'count': 0
+            }
+    except ImportError:
+        results['gpu'] = {
+            'status': 'UNAVAILABLE',
+            'message': 'PyTorch not available',
+            'count': 0
+        }
+    except Exception as e:
+        results['gpu'] = {
+            'status': 'ERROR',
+            'message': f'GPU check error: {str(e)}'
+        }
+    
+    # File system validation
+    try:
+        import tempfile
+        import os
+        
+        # Test write permissions
+        with tempfile.NamedTemporaryFile(delete=True) as tmp:
+            tmp.write(b'test')
+            tmp.flush()
+            
+        results['filesystem'] = {
+            'status': 'PASSED',
+            'message': 'File system access OK'
+        }
+    except Exception as e:
+        results['filesystem'] = {
+            'status': 'FAILED',
+            'message': f'File system error: {str(e)}'
+        }
+    
+    # Overall status
+    failed_checks = sum(1 for r in results.values() if r['status'] in ['FAILED', 'ERROR'])
+    warning_checks = sum(1 for r in results.values() if r['status'] == 'WARNING')
+    
+    if failed_checks == 0:
+        overall_status = 'HEALTHY' if warning_checks == 0 else 'HEALTHY_WITH_WARNINGS'
+    else:
+        overall_status = 'DEGRADED' if failed_checks < len(results) / 2 else 'CRITICAL'
+    
+    results['overall'] = {
+        'status': overall_status,
+        'failed_checks': failed_checks,
+        'warning_checks': warning_checks,
+        'total_checks': len(results) - 1  # Exclude 'overall' itself
+    }
+    
+    return results
