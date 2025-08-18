@@ -782,6 +782,11 @@ class SecurityValidator:
         """Initialize security validator."""
         self.validation_count = 0
         self.failed_validations = 0
+        self.enabled = True
+    
+    def is_enabled(self) -> bool:
+        """Check if security validation is enabled."""
+        return self.enabled
     
     def validate_geometry(self, geometry: Any) -> Dict[str, Any]:
         """
@@ -871,3 +876,112 @@ class SecurityValidator:
             'success_rate': success_rate * 100,
             'security_score': success_rate * 100
         }
+    
+    def validate_antenna_spec(self, spec: Any) -> Dict[str, Any]:
+        """
+        Validate antenna specification for security issues.
+        
+        Args:
+            spec: Antenna specification to validate
+            
+        Returns:
+            Validation result dictionary
+        """
+        warnings = []
+        
+        try:
+            # Check frequency range
+            if hasattr(spec, 'frequency_range'):
+                freq_range = spec.frequency_range
+                if hasattr(freq_range, 'start') and hasattr(freq_range, 'stop'):
+                    start_freq = freq_range.start
+                    stop_freq = freq_range.stop
+                    
+                    if start_freq <= 0 or stop_freq <= 0:
+                        warnings.append("Invalid frequency range: frequencies must be positive")
+                    elif start_freq >= stop_freq:
+                        warnings.append("Invalid frequency range: start >= stop")
+                    elif stop_freq > 100e9:
+                        warnings.append("Frequency range exceeds typical limits")
+            
+            # Check size constraints
+            if hasattr(spec, 'size_constraint'):
+                size = spec.size_constraint
+                if hasattr(size, 'length') and hasattr(size, 'width') and hasattr(size, 'height'):
+                    if size.length <= 0 or size.width <= 0 or size.height <= 0:
+                        warnings.append("Invalid size constraint: dimensions must be positive")
+                    elif max(size.length, size.width, size.height) > 1000:  # 1 meter max
+                        warnings.append("Size constraint exceeds reasonable physical limits")
+            
+            # Check gain requirements
+            if hasattr(spec, 'min_gain'):
+                if spec.min_gain < -50 or spec.min_gain > 50:  # dBi
+                    warnings.append("Gain requirement outside realistic range")
+            
+            # Check VSWR requirements
+            if hasattr(spec, 'max_vswr'):
+                if spec.max_vswr < 1.0 or spec.max_vswr > 100:
+                    warnings.append("VSWR requirement outside realistic range")
+            
+            return {
+                'sanitized': True,
+                'bounds_valid': len(warnings) == 0,
+                'clean': True,
+                'warnings': warnings
+            }
+            
+        except Exception as e:
+            return {
+                'sanitized': False,
+                'bounds_valid': False,
+                'clean': False,
+                'warnings': [f"Validation error: {e}"]
+            }
+    
+    def validate_optimization_result(self, result: Any) -> Dict[str, Any]:
+        """
+        Validate optimization result for physical feasibility.
+        
+        Args:
+            result: Optimization result to validate
+            
+        Returns:
+            Validation result dictionary
+        """
+        warnings = []
+        
+        try:
+            # Check gain values
+            if hasattr(result, 'gain_dbi'):
+                if result.gain_dbi < -50 or result.gain_dbi > 50:
+                    warnings.append("Gain value outside realistic range")
+            
+            # Check VSWR values
+            if hasattr(result, 'vswr'):
+                if result.vswr < 1.0 or result.vswr > 100:
+                    warnings.append("VSWR value outside realistic range")
+            
+            # Check efficiency values
+            if hasattr(result, 'efficiency'):
+                if result.efficiency < 0 or result.efficiency > 1:
+                    warnings.append("Efficiency value outside valid range (0-1)")
+            
+            # Check bandwidth values
+            if hasattr(result, 'bandwidth_hz'):
+                if result.bandwidth_hz <= 0 or result.bandwidth_hz > 100e9:
+                    warnings.append("Bandwidth value outside realistic range")
+            
+            return {
+                'feasible': len(warnings) == 0,
+                'consistent': True,
+                'sane': len(warnings) == 0,
+                'warnings': warnings
+            }
+            
+        except Exception as e:
+            return {
+                'feasible': False,
+                'consistent': False,
+                'sane': False,
+                'warnings': [f"Validation error: {e}"]
+            }
