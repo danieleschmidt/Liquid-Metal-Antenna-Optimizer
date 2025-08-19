@@ -55,7 +55,6 @@ def run_basic_functionality_tests():
         
         solver = DifferentiableFDTD(
             resolution=1e-3,
-            domain_size=(50e-3, 50e-3, 10e-3),
             pml_thickness=5e-3
         )
         print("   ✅ FDTD solver initialization successful")

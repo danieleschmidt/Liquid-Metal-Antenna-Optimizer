@@ -36,7 +36,13 @@ class BandConfiguration:
             raise ValueError("Efficiency must be between 0.0 and 1.0")
 
 
-class MultiBandPatchAntenna(ReconfigurablePatch):
+class AdvancedLiquidMetalAntenna(ReconfigurablePatch):
+    """Advanced liquid metal antenna with multi-band capabilities."""
+    
+    pass
+
+
+class MultiBandPatchAntenna(AdvancedLiquidMetalAntenna):
     """Multi-band reconfigurable patch antenna with advanced control."""
     
     def __init__(

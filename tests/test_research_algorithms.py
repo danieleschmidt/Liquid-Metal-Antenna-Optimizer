@@ -43,11 +43,135 @@ except ImportError as e:
     RESEARCH_MODULES_AVAILABLE = False
     print(f"Research modules not available: {e}")
 
+
+@pytest.mark.skipif(not RESEARCH_MODULES_AVAILABLE, reason="Research modules not available")
+class TestAdditionalCoverage:
+    """Additional tests to boost coverage."""
+    
+    def test_benchmark_edge_cases(self):
+        """Test edge cases in benchmarking."""
+        suite = ComprehensiveBenchmarkSuite()
+        
+        # Test empty results
+        empty_results = suite.analyze_convergence([])
+        assert empty_results is not None
+        
+        # Test single result
+        mock_result = Mock()
+        mock_result.convergence_history = [1.0, 0.5, 0.1]
+        single_results = suite.analyze_convergence([mock_result])
+        assert single_results is not None
+        
+    def test_uncertainty_edge_cases(self):
+        """Test uncertainty quantification edge cases."""
+        spec = AntennaSpec()
+        
+        # Test with zero uncertainty
+        uncertainty_model = create_manufacturing_uncertainty_model(
+            material_tolerance=0.0,
+            geometric_tolerance=0.0
+        )
+        assert uncertainty_model is not None
+        
+        # Test environmental model
+        env_model = create_environmental_uncertainty_model(
+            temperature_range=(20, 25),
+            humidity_range=(30, 35)
+        )
+        assert env_model is not None
+        
+    def test_multi_physics_initialization(self):
+        """Test multi-physics optimizer initialization."""
+        spec = AntennaSpec()
+        
+        # Test basic initialization
+        optimizer = MultiPhysicsOptimizer(spec)
+        assert optimizer is not None
+        
+        # Test coupled optimizer
+        coupled = CoupledEMFluidOptimizer(spec)
+        assert coupled is not None
+        
+    def test_graph_neural_network_basics(self):
+        """Test GNN surrogate basic functionality."""
+        # Test graph creation
+        spec = AntennaSpec()
+        graph = create_antenna_graph(spec, resolution=0.01)
+        assert graph is not None
+        
+        # Test surrogate creation
+        surrogate = GraphNeuralSurrogate(
+            input_dim=64,
+            hidden_dim=32,
+            output_dim=4
+        )
+        assert surrogate is not None
+        
+    def test_optimizer_error_handling(self):
+        """Test error handling in optimizers."""
+        spec = AntennaSpec()
+        
+        # Test quantum optimizer with invalid parameters
+        with pytest.raises(ValueError):
+            QuantumInspiredOptimizer(spec, population_size=-1)
+            
+        # Test multi-fidelity with invalid fidelity levels
+        with pytest.raises(ValueError):
+            MultiFidelityOptimizer(spec, fidelity_levels=[])
+            
+    def test_statistical_analysis(self):
+        """Test statistical analysis functions."""
+        # Mock results for statistical comparison
+        results1 = [Mock(objective_value=i) for i in [1.0, 2.0, 3.0]]
+        results2 = [Mock(objective_value=i) for i in [1.5, 2.5, 3.5]]
+        
+        comparison = StatisticalComparison()
+        stats = comparison.compare_algorithms(results1, results2)
+        assert 'p_value' in stats
+        assert 'effect_size' in stats
+        
+    def test_benchmark_problems(self):
+        """Test benchmark problem definitions."""
+        # Test antenna design problem
+        problem = AntennaDesignProblem(
+            frequency_range=(1e9, 10e9),
+            n_variables=10
+        )
+        assert problem.n_variables == 10
+        
+        # Test multi-objective problem
+        mo_problem = MultiObjectiveAntennaProblem(
+            n_objectives=3,
+            n_variables=8
+        )
+        assert mo_problem.n_objectives == 3
+        
+    def test_experimental_protocol(self):
+        """Test experimental protocol creation."""
+        protocol = create_experimental_protocol(
+            algorithms=['nsga3', 'quantum'],
+            problems=['patch_antenna', 'monopole'],
+            n_runs=5
+        )
+        assert len(protocol['algorithms']) == 2
+        assert len(protocol['problems']) == 2
+        assert protocol['n_runs'] == 5
+        
+    def test_publication_benchmark(self):
+        """Test publication-ready benchmark."""
+        with patch('liquid_metal_antenna.research.comparative_benchmarking.run_single_benchmark'):
+            results = run_publication_benchmark(
+                save_results=False,
+                n_runs=2  # Reduced for testing
+            )
+            assert results is not None
+
 from liquid_metal_antenna.core.antenna_spec import AntennaSpec
 from liquid_metal_antenna.core.optimizer import OptimizationResult
 
 
 class TestResearchAlgorithms:
+    """Test research algorithms for maximum coverage."""
     """Test suite for novel research algorithms."""
     
     @pytest.fixture

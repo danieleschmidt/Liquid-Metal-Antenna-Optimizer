@@ -108,31 +108,33 @@ if TORCH_AVAILABLE:
             spec: Antenna specification
             solver: Solver type or instance
             device: Computation device
-        """
-        self.spec = spec
-        self.device = device
-        
-        # Setup solver
-        if isinstance(solver, str):
-            if solver == 'differentiable_fdtd':
-                self.solver = DifferentiableFDTD(device=device)
+            """
+            if spec is None:
+                spec = AntennaSpec()
+            self.spec = spec
+            self.device = device
+            
+            # Setup solver
+            if isinstance(solver, str):
+                if solver == 'differentiable_fdtd':
+                    self.solver = DifferentiableFDTD(device=device)
+                else:
+                    raise ValueError(f"Unknown solver type: {solver}")
             else:
-                raise ValueError(f"Unknown solver type: {solver}")
-        else:
-            self.solver = solver
-        
-        # Optimization parameters
-        self.learning_rate = 0.01
-        self.max_iterations = 1000
-        self.tolerance = 1e-4
-        
-        # Constraint parameters
-        self.constraint_weights = {
-            'vswr': 10.0,
-            'bandwidth': 1.0,
-            'efficiency': 1.0,
-            'size': 1.0
-        }
+                self.solver = solver
+            
+            # Optimization parameters
+            self.learning_rate = 0.01
+            self.max_iterations = 1000
+            self.tolerance = 1e-4
+            
+            # Constraint parameters  
+            self.constraint_weights = {
+                'vswr': 10.0,
+                'bandwidth': 1.0,
+                'efficiency': 1.0,
+                'size': 1.0
+            }
     
     def create_initial_geometry(self, spec: AntennaSpec) -> Union['torch.Tensor', np.ndarray]:
         """Create initial antenna geometry."""
