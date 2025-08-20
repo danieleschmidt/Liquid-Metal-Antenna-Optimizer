@@ -110,14 +110,14 @@
     "benchmarks": [
       {
         "name": "API Response Time",
-        "value": 93.9786434173584,
+        "value": 32.91749954223633,
         "unit": "ms",
         "threshold": 200,
         "passed": true
       },
       {
         "name": "Memory Usage",
-        "value": 109.40230973160513,
+        "value": 146.31105726449044,
         "unit": "MB",
         "threshold": 500,
         "passed": true
@@ -131,7 +131,7 @@
       },
       {
         "name": "Optimization Accuracy",
-        "value": 89.12690386059653,
+        "value": 90.6770958272899,
         "unit": "%",
         "threshold": 80,
         "passed": true
