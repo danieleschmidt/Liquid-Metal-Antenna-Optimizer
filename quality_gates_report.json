@@ -1,81 +1,158 @@
 {
-  "timestamp": "2025-08-16 19:10:51",
-  "quality_gates_version": "1.0",
-  "terragon_sdlc_generation": "2-3",
-  "results": {
-    "Import Quality Gate": {
-      "passed": true,
-      "duration": 0.16813158988952637,
-      "error_message": "",
-      "details": {
-        "core": true,
-        "error_handling": true,
-        "logging": true,
-        "security": true
-      }
+  "timestamp": 1756233617.5817695,
+  "overall_score": 0.27399999999999997,
+  "passing_gates": 4,
+  "total_gates": 10,
+  "results": [
+    {
+      "name": "Code Structure",
+      "status": "pass",
+      "score": 0.8,
+      "message": "Code structure validation: 2 issues found",
+      "details": [
+        "Missing __init__.py in: /root/repo/liquid_metal_antenna/deployment",
+        "Missing __init__.py in: /root/repo/liquid_metal_antenna/security"
+      ],
+      "severity": "medium",
+      "execution_time": 0.005717277526855469
     },
-    "Basic Functionality Gate": {
-      "passed": true,
-      "duration": 0.06570315361022949,
-      "error_message": "",
-      "details": {
-        "gain_dbi": 2.536875,
-        "vswr": 3.484375,
-        "efficiency": 0.60234375,
-        "optimization_time": 0.048675537109375,
-        "iterations": 3
-      }
+    {
+      "name": "Import Safety",
+      "status": "fail",
+      "score": 0.0,
+      "message": "Import safety check: 539 potential issues found",
+      "details": [
+        "Potentially dangerous import 'eval' in autonomous_research_publication_pipeline.py:188",
+        "Potentially dangerous import 'eval' in autonomous_research_publication_pipeline.py:545",
+        "Potentially dangerous import 'eval' in autonomous_research_publication_pipeline.py:549",
+        "Potentially dangerous import 'eval' in autonomous_research_publication_pipeline.py:656",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:1",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:2",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:24",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:27",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:29",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:32",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:35",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:45",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:59",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:65",
+        "Potentially dangerous import 'exec' in autonomous_research_publication_pipeline.py:144"
+      ],
+      "severity": "high",
+      "execution_time": 0.10402894020080566
     },
-    "Performance Gate": {
-      "passed": true,
-      "duration": 0.09198927879333496,
-      "error_message": "",
-      "details": {
-        "total_time": 0.09084272384643555,
-        "time_per_iteration": 0.009084272384643554,
-        "iterations": 10,
-        "max_time_limit": 10.0,
-        "max_time_per_iteration": 0.5,
-        "meets_requirements": true
-      }
+    {
+      "name": "Security Scan",
+      "status": "fail",
+      "score": 0.0,
+      "message": "Security scan: 8 potential vulnerabilities",
+      "details": [
+        "Potential hardcoded secret in comprehensive_tests.py:4",
+        "Potential hardcoded secret in simple_quality_check.py:5",
+        "Potential hardcoded secret in __init__.py:1",
+        "Potential hardcoded secret in adaptive_hyperparameter_evolution.py:1",
+        "Potential hardcoded secret in novel_algorithms.py:1",
+        "Potential hardcoded secret in novel_algorithms.py:1",
+        "Potential hardcoded secret in novel_algorithms.py:1",
+        "Potential hardcoded secret in topological_optimization.py:1"
+      ],
+      "severity": "critical",
+      "execution_time": 0.39522647857666016
     },
-    "Robustness Gate": {
-      "passed": true,
-      "duration": 0.02412104606628418,
-      "error_message": "",
-      "details": {
-        "error_handling": true,
-        "logging": true,
-        "security": true,
-        "invalid_input_handling": true
-      }
+    {
+      "name": "Performance Test",
+      "status": "warn",
+      "score": 0.7999999999999998,
+      "message": "Performance validation: 4 issues found",
+      "details": [
+        "Use enumerate() instead of range(len()) in autonomous_research_publication_pipeline.py",
+        "Consider list comprehensions for better performance in autonomous_research_publication_pipeline.py",
+        "Use enumerate() instead of range(len()) in quality_gates_research_enhanced.py",
+        "Consider list comprehensions for better performance in quality_gates_research_enhanced.py"
+      ],
+      "severity": "medium",
+      "execution_time": 0.15925002098083496
     },
-    "Security Gate": {
-      "passed": true,
-      "duration": 0.1489856243133545,
-      "error_message": "",
-      "details": {
-        "input_validation": true,
-        "geometry_validation": true,
-        "parameter_sanitization": true
-      }
+    {
+      "name": "Test Coverage",
+      "status": "fail",
+      "score": 0.0,
+      "message": "Test coverage analysis: 23 test files, 59 source files",
+      "details": [
+        "Test coverage might be low: 23 test files for 59 source files",
+        "No test functions found in test_comprehensive_coverage.py",
+        "No test functions found in test_import.py",
+        "No test functions found in test_basic.py",
+        "No test functions found in test_core_antenna_spec.py",
+        "No test functions found in test_evolutionary_enhancements.py",
+        "No test functions found in test_generation5_algorithms.py",
+        "No test functions found in test_integration.py",
+        "No test functions found in test_optimization_lma.py",
+        "No test functions found in test_performance_benchmarks.py",
+        "No test functions found in test_research_algorithms.py",
+        "Test files don't seem to import the main package"
+      ],
+      "severity": "medium",
+      "execution_time": 0.00827479362487793
     },
-    "Code Quality Gate": {
-      "passed": true,
-      "duration": 0.0003662109375,
-      "error_message": "",
-      "details": {
-        "import_structure": true,
-        "error_handling": true,
-        "documentation": true,
-        "modularity": true
-      }
+    {
+      "name": "Documentation",
+      "status": "pass",
+      "score": 1.0,
+      "message": "Documentation check: 12 doc files, 0/0 documented functions",
+      "details": [],
+      "severity": "medium",
+      "execution_time": 0.010713577270507812
+    },
+    {
+      "name": "Dependency Security",
+      "status": "pass",
+      "score": 1.0,
+      "message": "Dependency security check: 0 potential issues",
+      "details": [],
+      "severity": "medium",
+      "execution_time": 0.001108407974243164
+    },
+    {
+      "name": "Code Quality",
+      "status": "fail",
+      "score": 0.0,
+      "message": "Code quality check: 260 issues found",
+      "details": [
+        "Long line in autonomous_research_publication_pipeline.py:1 (3363 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:201 (145 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:342 (123 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:400 (123 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:466 (125 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:592 (124 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:996 (122 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:997 (133 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:1077 (122 chars)",
+        "Long line in autonomous_research_publication_pipeline.py:1232 (135 chars)"
+      ],
+      "severity": "medium",
+      "execution_time": 0.01844930648803711
+    },
+    {
+      "name": "Configuration Validation",
+      "status": "pass",
+      "score": 1.0,
+      "message": "Configuration validation: 0 issues found",
+      "details": [],
+      "severity": "medium",
+      "execution_time": 0.0032110214233398438
+    },
+    {
+      "name": "Deployment Readiness",
+      "status": "warn",
+      "score": 0.7999999999999999,
+      "message": "Deployment readiness: 80.0% ready",
+      "details": [
+        "Missing setup.py",
+        "No CI/CD configuration found"
+      ],
+      "severity": "medium",
+      "execution_time": 0.0005724430084228516
     }
-  },
-  "summary": {
-    "passed_gates": 6,
-    "total_gates": 6,
-    "success_rate": 100.0,
-    "total_time": 0.4996297359466553
-  }
+  ]
 }
